@@ -1,0 +1,6 @@
+node_modules/
+.env
+data/*.xlsx
+data/screenshots/*.png
+storage/miaoshou_state.json
+npm-debug.log*

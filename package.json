@@ -1,0 +1,27 @@
+{
+  "name": "miaoshou-attribute-helper",
+  "version": "1.0.0",
+  "description": "本地妙手ERP商品必填属性自动填写助手",
+  "main": "src/main.js",
+  "scripts": {
+    "login": "node src/login.js",
+    "fill": "node src/main.js"
+  },
+  "keywords": [
+    "miaoshou",
+    "erp",
+    "playwright",
+    "openai",
+    "attribute"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "exceljs": "^4.4.0",
+    "openai": "^4.76.0",
+    "playwright": "^1.49.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

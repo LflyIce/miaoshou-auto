@@ -1,0 +1,208 @@
+const fs = require('fs');
+const fsp = require('fs/promises');
+const path = require('path');
+const readline = require('readline');
+
+const PROJECT_ROOT = path.resolve(__dirname, '..');
+
+function resolveRoot(...parts) {
+  return path.join(PROJECT_ROOT, ...parts);
+}
+
+async function ensureDir(dirPath) {
+  await fsp.mkdir(dirPath, { recursive: true });
+}
+
+async function ensureProjectDirs() {
+  await Promise.all([
+    ensureDir(resolveRoot('config')),
+    ensureDir(resolveRoot('src')),
+    ensureDir(resolveRoot('data')),
+    ensureDir(resolveRoot('data', 'screenshots')),
+    ensureDir(resolveRoot('storage'))
+  ]);
+}
+
+function readJSONSync(filePath, fallback = {}) {
+  try {
+    if (!fs.existsSync(filePath)) return fallback;
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch (error) {
+    console.warn(`[配置] 读取失败 ${filePath}: ${error.message}`);
+    return fallback;
+  }
+}
+
+function loadConfig() {
+  const defaults = {
+    startUrl: 'https://erp.91miaoshou.com/',
+    productEditUrl: '',
+    headless: false,
+    ai: {
+      baseURL: 'https://api.openai.com/v1',
+      model: 'gpt-4o-mini',
+      apiKeyEnv: 'OPENAI_API_KEY'
+    },
+    thresholds: {
+      autoSelectScore: 0.85,
+      aiSecondChoiceScore: 0.7
+    },
+    browser: {
+      channel: 'msedge',
+      executablePath: '',
+      viewport: {
+        width: 1920,
+        height: 1080
+      }
+    },
+    behavior: {
+      saveAfterFill: false,
+      screenshotOnError: true,
+      skipAlreadyFilled: true,
+      waitForManualPage: true
+    }
+  };
+  const userConfig = readJSONSync(resolveRoot('config', 'config.json'), {});
+  return mergeDeep(defaults, userConfig);
+}
+
+function getBrowserLaunchOptions(config) {
+  const viewport = getBrowserViewport(config);
+  const options = {
+    headless: Boolean(config.headless),
+    args: [
+      `--window-size=${viewport.width},${viewport.height}`,
+      '--window-position=0,0'
+    ]
+  };
+
+  if (config.browser && config.browser.executablePath) {
+    options.executablePath = config.browser.executablePath;
+  } else if (config.browser && config.browser.channel) {
+    options.channel = config.browser.channel;
+  }
+
+  return options;
+}
+
+function getBrowserViewport(config) {
+  const width = Number(config && config.browser && config.browser.viewport && config.browser.viewport.width) || 1920;
+  const height = Number(config && config.browser && config.browser.viewport && config.browser.viewport.height) || 1080;
+  return { width, height };
+}
+
+function getBrowserContextOptions(config, extra = {}) {
+  const viewport = getBrowserViewport(config);
+  return {
+    viewport,
+    screen: viewport,
+    ...extra
+  };
+}
+
+function mergeDeep(target, source) {
+  const output = { ...target };
+  for (const [key, value] of Object.entries(source || {})) {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      output[key] = mergeDeep(output[key] || {}, value);
+    } else {
+      output[key] = value;
+    }
+  }
+  return output;
+}
+
+function waitForEnter(message = '完成后按回车继续...') {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+    rl.question(`${message}\n`, () => {
+      rl.close();
+      resolve();
+    });
+  });
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function unique(items) {
+  const seen = new Set();
+  const result = [];
+  for (const item of items || []) {
+    const text = String(item || '').trim();
+    if (!text || seen.has(text)) continue;
+    seen.add(text);
+    result.push(text);
+  }
+  return result;
+}
+
+function fullWidthToHalfWidth(text) {
+  return String(text || '').replace(/[\uff01-\uff5e]/g, (char) =>
+    String.fromCharCode(char.charCodeAt(0) - 0xfee0)
+  ).replace(/\u3000/g, ' ');
+}
+
+function normalizeText(text) {
+  return fullWidthToHalfWidth(text)
+    .toLowerCase()
+    .replace(/（[^）]*）|\([^)]*\)|\[[^\]]*]|\{[^}]*}/g, '')
+    .replace(/请选择|选择|全部|不限|--|—|－|none|null|undefined/g, '')
+    .replace(/[\s"'`~!@#$%^&*_\-+=|\\/:;,.，。！？!?、<>《》【】[\]]+/g, '')
+    .trim();
+}
+
+function cleanAttributeName(text) {
+  return String(text || '')
+    .replace(/\*/g, '')
+    .replace(/必填/g, '')
+    .replace(/[:：]\s*$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function safeFileName(text, fallback = 'file') {
+  const cleaned = String(text || fallback)
+    .replace(/[\\/:*?"<>|]/g, '_')
+    .replace(/\s+/g, '_')
+    .slice(0, 80);
+  return cleaned || fallback;
+}
+
+function nowForFile() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+}
+
+function toArrayValue(value) {
+  if (Array.isArray(value)) return value.map((v) => String(v).trim()).filter(Boolean);
+  if (value == null) return [];
+  return String(value)
+    .split(/[,，;；/|]/)
+    .map((v) => v.trim())
+    .filter(Boolean);
+}
+
+module.exports = {
+  PROJECT_ROOT,
+  resolveRoot,
+  ensureDir,
+  ensureProjectDirs,
+  readJSONSync,
+  loadConfig,
+  getBrowserLaunchOptions,
+  getBrowserContextOptions,
+  waitForEnter,
+  sleep,
+  unique,
+  normalizeText,
+  cleanAttributeName,
+  safeFileName,
+  nowForFile,
+  toArrayValue
+};
