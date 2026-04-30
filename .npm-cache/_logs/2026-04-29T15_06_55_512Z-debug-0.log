@@ -1,0 +1,476 @@
+0 verbose cli D:\nvm4w\nodejs\node.exe D:\nodejs\node_global\node_modules\npm\bin\npm-cli.js
+1 info using npm@11.7.0
+2 info using node@v24.10.0
+3 silly config load:file:D:\nodejs\node_global\node_modules\npm\npmrc
+4 silly config load:file:D:\WorkSpace\miaoshou-auto\.npmrc
+5 silly config load:file:C:\Users\Administrator\.npmrc
+6 silly config load:file:D:\nodejs\node_global\etc\npmrc
+7 verbose title npm install
+8 verbose argv "install" "--offline" "--cache" ".\\.npm-cache" "--loglevel" "warn"
+9 verbose logfile logs-max:10 dir:D:\WorkSpace\miaoshou-auto\.npm-cache\_logs\2026-04-29T15_06_55_512Z-
+10 verbose logfile D:\WorkSpace\miaoshou-auto\.npm-cache\_logs\2026-04-29T15_06_55_512Z-debug-0.log
+11 silly logfile done cleaning log files
+12 silly packumentCache heap:4496293888 maxSize:1124073472 maxEntrySize:562036736
+13 silly idealTree buildDeps
+14 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\abort-controller' ]
+15 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\archiver' ]
+16 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\archiver-utils' ]
+17 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\agentkeepalive' ]
+18 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\base64-js' ]
+19 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\big-integer' ]
+20 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\binary' ]
+21 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\bluebird' ]
+22 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\bl' ]
+23 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\brace-expansion' ]
+24 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\buffer' ]
+25 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\buffers' ]
+26 silly reify mark retired [
+26 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\buffer-indexof-polyfill'
+26 silly reify ]
+27 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\buffer-crc32' ]
+28 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\chainsaw' ]
+29 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\compress-commons' ]
+30 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\crc32-stream' ]
+31 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\crc-32' ]
+32 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\dayjs' ]
+33 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\dotenv' ]
+34 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\duplexer2' ]
+35 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\end-of-stream' ]
+36 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\event-target-shim' ]
+37 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\exceljs' ]
+38 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\fast-csv' ]
+39 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\form-data' ]
+40 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\form-data-encoder' ]
+41 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\formdata-node' ]
+42 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\fs-constants' ]
+43 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\fstream' ]
+44 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\hasown' ]
+45 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\ieee754' ]
+46 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\humanize-ms' ]
+47 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\immediate' ]
+48 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\jszip' ]
+49 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\lazystream' ]
+50 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\lie' ]
+51 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\listenercount' ]
+52 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\lodash.defaults' ]
+53 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\lodash.difference' ]
+54 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\lodash.escaperegexp' ]
+55 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\lodash.flatten' ]
+56 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\lodash.groupby' ]
+57 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\lodash.isboolean' ]
+58 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\lodash.isfunction' ]
+59 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\lodash.isnil' ]
+60 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\lodash.isplainobject' ]
+61 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\lodash.isundefined' ]
+62 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\lodash.union' ]
+63 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\minimatch' ]
+64 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\mkdirp' ]
+65 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\node-domexception' ]
+66 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\node-fetch' ]
+67 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\openai' ]
+68 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\pako' ]
+69 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\playwright' ]
+70 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\playwright-core' ]
+71 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\readdir-glob' ]
+72 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\rimraf' ]
+73 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\setimmediate' ]
+74 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\tar-stream' ]
+75 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\tmp' ]
+76 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\tr46' ]
+77 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\undici-types' ]
+78 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\traverse' ]
+79 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\unzipper' ]
+80 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\uuid' ]
+81 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\web-streams-polyfill' ]
+82 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\webidl-conversions' ]
+83 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\whatwg-url' ]
+84 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\zip-stream' ]
+85 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\@fast-csv\\format' ]
+86 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\@fast-csv\\parse' ]
+87 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\@types\\node' ]
+88 silly reify mark retired [ 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\@types\\node-fetch' ]
+89 silly reify moves {
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\abort-controller': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.abort-controller-5LK2rkxM',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\archiver': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.archiver-5kyNaFkL',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\archiver-utils': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.archiver-utils-SSRAzyh2',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\agentkeepalive': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.agentkeepalive-GqboZL4s',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\base64-js': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.base64-js-uRqFvArF',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\big-integer': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.big-integer-CTWAyJVi',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\binary': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.binary-jowQ358a',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\bluebird': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.bluebird-du2FRBip',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\bl': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.bl-jS0XJctt',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\brace-expansion': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.brace-expansion-kFPxTtUs',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\buffer': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.buffer-cbZvZxwN',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\buffers': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.buffers-vrkDBk97',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\buffer-indexof-polyfill': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.buffer-indexof-polyfill-s6M0gCKt',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\buffer-crc32': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.buffer-crc32-q1RgTHBI',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\chainsaw': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.chainsaw-aIyvzk74',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\compress-commons': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.compress-commons-wx2Lox7o',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\crc32-stream': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.crc32-stream-Z7PGj6SF',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\crc-32': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.crc-32-rBiQq740',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\dayjs': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.dayjs-DJPRO8oN',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\dotenv': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.dotenv-wNGOFwL6',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\duplexer2': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.duplexer2-fiLF988e',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\end-of-stream': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.end-of-stream-DdtBEcjF',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\event-target-shim': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.event-target-shim-ZkrPAgUI',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\exceljs': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.exceljs-6FeF6soy',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\fast-csv': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.fast-csv-NEY4bRzH',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\form-data': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.form-data-B5uSbKUB',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\form-data-encoder': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.form-data-encoder-sZXDsKW8',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\formdata-node': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.formdata-node-H4oGSo40',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\fs-constants': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.fs-constants-Z6KIpeD7',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\fstream': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.fstream-Y7q92ZbZ',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\hasown': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.hasown-I2xoZyNV',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\ieee754': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.ieee754-qm0zDAo5',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\humanize-ms': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.humanize-ms-jcod7CLl',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\immediate': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.immediate-WVRaUOw4',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\jszip': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.jszip-FEbt3ip3',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\lazystream': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.lazystream-ecXpw4lz',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\lie': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.lie-omB9XauV',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\listenercount': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.listenercount-IsWlrviz',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\lodash.defaults': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.lodash.defaults-BQYPqzQy',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\lodash.difference': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.lodash.difference-t3tqkYfh',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\lodash.escaperegexp': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.lodash.escaperegexp-JJa8nQUA',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\lodash.flatten': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.lodash.flatten-Ynw7nKln',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\lodash.groupby': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.lodash.groupby-AVmbNjG8',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\lodash.isboolean': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.lodash.isboolean-SVSYnZKS',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\lodash.isfunction': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.lodash.isfunction-qDmaJnxa',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\lodash.isnil': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.lodash.isnil-nj17EkUm',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\lodash.isplainobject': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.lodash.isplainobject-MMBBDPbR',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\lodash.isundefined': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.lodash.isundefined-fEAnahoi',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\lodash.union': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.lodash.union-onDeXYzJ',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\minimatch': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.minimatch-EqQgJwUf',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\mkdirp': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.mkdirp-8yp5n49o',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\node-domexception': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.node-domexception-1QL6ddsl',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\node-fetch': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.node-fetch-5AiRZh8H',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\openai': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.openai-KfsFABYD',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\pako': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.pako-OA0KNlQm',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\playwright': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.playwright-AbxG5Uw7',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\playwright-core': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.playwright-core-ezSNdtFd',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\readdir-glob': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.readdir-glob-0c8hsY9p',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\rimraf': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.rimraf-CSM5T2xH',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\setimmediate': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.setimmediate-Hx4q5d2n',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\tar-stream': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.tar-stream-QcD3u5qE',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\tmp': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.tmp-bbABjoVP',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\tr46': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.tr46-crDehY52',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\undici-types': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.undici-types-6YBqdWlz',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\traverse': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.traverse-b5RUeST5',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\unzipper': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.unzipper-9otCzfkb',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\uuid': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.uuid-uFyKX0Iq',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\web-streams-polyfill': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.web-streams-polyfill-0m6zDWbM',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\webidl-conversions': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.webidl-conversions-AWZ4FF7q',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\whatwg-url': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.whatwg-url-JQO0HdnY',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\zip-stream': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\.zip-stream-15XuDSzb',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\@fast-csv\\format': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\@fast-csv\\.format-V67fq0yG',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\@fast-csv\\parse': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\@fast-csv\\.parse-8BaSON76',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\@types\\node': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\@types\\.node-FoCc4GXm',
+89 silly reify   'D:\\WorkSpace\\miaoshou-auto\\node_modules\\@types\\node-fetch': 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\@types\\.node-fetch-kkTTAB4J'
+89 silly reify }
+90 silly audit report null
+91 http cache @types/node-fetch@https://registry.npmmirror.com/@types/node-fetch/-/node-fetch-2.6.13.tgz 0ms (cache hit)
+92 http cache @fast-csv/parse@https://registry.npmmirror.com/@fast-csv/parse/-/parse-4.3.6.tgz 0ms (cache hit)
+93 http cache @types/node@https://registry.npmmirror.com/@types/node/-/node-14.18.63.tgz 0ms (cache hit)
+94 http cache @fast-csv/format@https://registry.npmmirror.com/@fast-csv/format/-/format-4.3.5.tgz 0ms (cache hit)
+95 http cache zip-stream@https://registry.npmmirror.com/zip-stream/-/zip-stream-4.1.1.tgz 0ms (cache hit)
+96 http cache whatwg-url@https://registry.npmmirror.com/whatwg-url/-/whatwg-url-5.0.0.tgz 0ms (cache hit)
+97 http cache webidl-conversions@https://registry.npmmirror.com/webidl-conversions/-/webidl-conversions-3.0.1.tgz 0ms (cache hit)
+98 http cache web-streams-polyfill@https://registry.npmmirror.com/web-streams-polyfill/-/web-streams-polyfill-4.0.0-beta.3.tgz 0ms (cache hit)
+99 http cache unzipper@https://registry.npmmirror.com/unzipper/-/unzipper-0.10.14.tgz 0ms (cache hit)
+100 http cache uuid@https://registry.npmmirror.com/uuid/-/uuid-8.3.2.tgz 0ms (cache hit)
+101 http cache tmp@https://registry.npmmirror.com/tmp/-/tmp-0.2.5.tgz 0ms (cache hit)
+102 http cache traverse@https://registry.npmmirror.com/traverse/-/traverse-0.3.9.tgz 0ms (cache hit)
+103 http cache undici-types@https://registry.npmmirror.com/undici-types/-/undici-types-5.26.5.tgz 0ms (cache hit)
+104 http cache tr46@https://registry.npmmirror.com/tr46/-/tr46-0.0.3.tgz 0ms (cache hit)
+105 http cache tar-stream@https://registry.npmmirror.com/tar-stream/-/tar-stream-2.2.0.tgz 0ms (cache hit)
+106 http cache readdir-glob@https://registry.npmmirror.com/readdir-glob/-/readdir-glob-1.1.3.tgz 0ms (cache hit)
+107 http cache rimraf@https://registry.npmmirror.com/rimraf/-/rimraf-2.7.1.tgz 0ms (cache hit)
+108 http cache playwright@https://registry.npmmirror.com/playwright/-/playwright-1.59.1.tgz 0ms (cache hit)
+109 http cache playwright-core@https://registry.npmmirror.com/playwright-core/-/playwright-core-1.59.1.tgz 0ms (cache hit)
+110 http cache setimmediate@https://registry.npmmirror.com/setimmediate/-/setimmediate-1.0.5.tgz 0ms (cache hit)
+111 http cache openai@https://registry.npmmirror.com/openai/-/openai-4.104.0.tgz 0ms (cache hit)
+112 http cache node-fetch@https://registry.npmmirror.com/node-fetch/-/node-fetch-2.7.0.tgz 0ms (cache hit)
+113 http cache mkdirp@https://registry.npmmirror.com/mkdirp/-/mkdirp-0.5.6.tgz 0ms (cache hit)
+114 http cache node-domexception@https://registry.npmmirror.com/node-domexception/-/node-domexception-1.0.0.tgz 0ms (cache hit)
+115 http cache minimatch@https://registry.npmmirror.com/minimatch/-/minimatch-3.1.5.tgz 0ms (cache hit)
+116 http cache lodash.union@https://registry.npmmirror.com/lodash.union/-/lodash.union-4.6.0.tgz 0ms (cache hit)
+117 http cache lodash.isundefined@https://registry.npmmirror.com/lodash.isundefined/-/lodash.isundefined-3.0.1.tgz 0ms (cache hit)
+118 http cache lodash.isplainobject@https://registry.npmmirror.com/lodash.isplainobject/-/lodash.isplainobject-4.0.6.tgz 0ms (cache hit)
+119 http cache lodash.isnil@https://registry.npmmirror.com/lodash.isnil/-/lodash.isnil-4.0.0.tgz 0ms (cache hit)
+120 http cache pako@https://registry.npmmirror.com/pako/-/pako-1.0.11.tgz 0ms (cache hit)
+121 http cache lodash.isfunction@https://registry.npmmirror.com/lodash.isfunction/-/lodash.isfunction-3.0.9.tgz 0ms (cache hit)
+122 http cache lodash.isboolean@https://registry.npmmirror.com/lodash.isboolean/-/lodash.isboolean-3.0.3.tgz 0ms (cache hit)
+123 http cache lodash.flatten@https://registry.npmmirror.com/lodash.flatten/-/lodash.flatten-4.4.0.tgz 0ms (cache hit)
+124 http cache lodash.groupby@https://registry.npmmirror.com/lodash.groupby/-/lodash.groupby-4.6.0.tgz 0ms (cache hit)
+125 http cache lodash.escaperegexp@https://registry.npmmirror.com/lodash.escaperegexp/-/lodash.escaperegexp-4.1.2.tgz 0ms (cache hit)
+126 http cache lodash.difference@https://registry.npmmirror.com/lodash.difference/-/lodash.difference-4.5.0.tgz 0ms (cache hit)
+127 http cache lodash.defaults@https://registry.npmmirror.com/lodash.defaults/-/lodash.defaults-4.2.0.tgz 0ms (cache hit)
+128 http cache listenercount@https://registry.npmmirror.com/listenercount/-/listenercount-1.0.1.tgz 0ms (cache hit)
+129 http cache lie@https://registry.npmmirror.com/lie/-/lie-3.3.0.tgz 0ms (cache hit)
+130 http cache lazystream@https://registry.npmmirror.com/lazystream/-/lazystream-1.0.1.tgz 0ms (cache hit)
+131 http cache jszip@https://registry.npmmirror.com/jszip/-/jszip-3.10.1.tgz 0ms (cache hit)
+132 http cache humanize-ms@https://registry.npmmirror.com/humanize-ms/-/humanize-ms-1.2.1.tgz 0ms (cache hit)
+133 http cache ieee754@https://registry.npmmirror.com/ieee754/-/ieee754-1.2.1.tgz 0ms (cache hit)
+134 http cache fs-constants@https://registry.npmmirror.com/fs-constants/-/fs-constants-1.0.0.tgz 0ms (cache hit)
+135 http cache hasown@https://registry.npmmirror.com/hasown/-/hasown-2.0.3.tgz 0ms (cache hit)
+136 http cache immediate@https://registry.npmmirror.com/immediate/-/immediate-3.0.6.tgz 0ms (cache hit)
+137 http cache fstream@https://registry.npmmirror.com/fstream/-/fstream-1.0.12.tgz 0ms (cache hit)
+138 http cache formdata-node@https://registry.npmmirror.com/formdata-node/-/formdata-node-4.4.1.tgz 0ms (cache hit)
+139 http cache form-data-encoder@https://registry.npmmirror.com/form-data-encoder/-/form-data-encoder-1.7.2.tgz 0ms (cache hit)
+140 http cache form-data@https://registry.npmmirror.com/form-data/-/form-data-4.0.5.tgz 0ms (cache hit)
+141 http cache fast-csv@https://registry.npmmirror.com/fast-csv/-/fast-csv-4.3.6.tgz 0ms (cache hit)
+142 http cache exceljs@https://registry.npmmirror.com/exceljs/-/exceljs-4.4.0.tgz 0ms (cache hit)
+143 http cache duplexer2@https://registry.npmmirror.com/duplexer2/-/duplexer2-0.1.4.tgz 0ms (cache hit)
+144 http cache end-of-stream@https://registry.npmmirror.com/end-of-stream/-/end-of-stream-1.4.5.tgz 0ms (cache hit)
+145 http cache event-target-shim@https://registry.npmmirror.com/event-target-shim/-/event-target-shim-5.0.1.tgz 0ms (cache hit)
+146 http cache dotenv@https://registry.npmmirror.com/dotenv/-/dotenv-16.6.1.tgz 0ms (cache hit)
+147 http cache dayjs@https://registry.npmmirror.com/dayjs/-/dayjs-1.11.20.tgz 0ms (cache hit)
+148 http cache crc32-stream@https://registry.npmmirror.com/crc32-stream/-/crc32-stream-4.0.3.tgz 0ms (cache hit)
+149 http cache compress-commons@https://registry.npmmirror.com/compress-commons/-/compress-commons-4.1.2.tgz 0ms (cache hit)
+150 http cache crc-32@https://registry.npmmirror.com/crc-32/-/crc-32-1.2.2.tgz 0ms (cache hit)
+151 http cache chainsaw@https://registry.npmmirror.com/chainsaw/-/chainsaw-0.1.0.tgz 0ms (cache hit)
+152 http cache buffer-indexof-polyfill@https://registry.npmmirror.com/buffer-indexof-polyfill/-/buffer-indexof-polyfill-1.0.2.tgz 0ms (cache hit)
+153 http cache buffer-crc32@https://registry.npmmirror.com/buffer-crc32/-/buffer-crc32-0.2.13.tgz 0ms (cache hit)
+154 http cache buffers@https://registry.npmmirror.com/buffers/-/buffers-0.1.1.tgz 0ms (cache hit)
+155 http cache buffer@https://registry.npmmirror.com/buffer/-/buffer-5.7.1.tgz 0ms (cache hit)
+156 http cache binary@https://registry.npmmirror.com/binary/-/binary-0.3.0.tgz 0ms (cache hit)
+157 http cache bluebird@https://registry.npmmirror.com/bluebird/-/bluebird-3.4.7.tgz 0ms (cache hit)
+158 http cache brace-expansion@https://registry.npmmirror.com/brace-expansion/-/brace-expansion-1.1.14.tgz 0ms (cache hit)
+159 http cache big-integer@https://registry.npmmirror.com/big-integer/-/big-integer-1.6.52.tgz 0ms (cache hit)
+160 http cache agentkeepalive@https://registry.npmmirror.com/agentkeepalive/-/agentkeepalive-4.6.0.tgz 0ms (cache hit)
+161 http cache archiver-utils@https://registry.npmmirror.com/archiver-utils/-/archiver-utils-2.1.0.tgz 0ms (cache hit)
+162 http cache base64-js@https://registry.npmmirror.com/base64-js/-/base64-js-1.5.1.tgz 0ms (cache hit)
+163 http cache bl@https://registry.npmmirror.com/bl/-/bl-4.1.0.tgz 0ms (cache hit)
+164 http cache archiver@https://registry.npmmirror.com/archiver/-/archiver-5.3.2.tgz 0ms (cache hit)
+165 http cache archiver-utils@https://registry.npmmirror.com/archiver-utils/-/archiver-utils-3.0.4.tgz 0ms (cache hit)
+166 http cache abort-controller@https://registry.npmmirror.com/abort-controller/-/abort-controller-3.0.0.tgz 0ms (cache hit)
+167 http cache string_decoder@https://registry.npmmirror.com/string_decoder/-/string_decoder-1.1.1.tgz 0ms (cache hit)
+168 http cache minimatch@https://registry.npmmirror.com/minimatch/-/minimatch-5.1.9.tgz 0ms (cache hit)
+169 http cache readable-stream@https://registry.npmmirror.com/readable-stream/-/readable-stream-2.3.8.tgz 0ms (cache hit)
+170 http cache brace-expansion@https://registry.npmmirror.com/brace-expansion/-/brace-expansion-2.1.0.tgz 0ms (cache hit)
+171 http cache @types/node@https://registry.npmmirror.com/@types/node/-/node-18.19.130.tgz 0ms (cache hit)
+172 http cache string_decoder@https://registry.npmmirror.com/string_decoder/-/string_decoder-1.1.1.tgz 0ms (cache hit)
+173 http cache safe-buffer@https://registry.npmmirror.com/safe-buffer/-/safe-buffer-5.1.2.tgz 0ms (cache hit)
+174 http cache string_decoder@https://registry.npmmirror.com/string_decoder/-/string_decoder-1.1.1.tgz 0ms (cache hit)
+175 http cache safe-buffer@https://registry.npmmirror.com/safe-buffer/-/safe-buffer-5.1.2.tgz 0ms (cache hit)
+176 http cache readable-stream@https://registry.npmmirror.com/readable-stream/-/readable-stream-2.3.8.tgz 0ms (cache hit)
+177 http cache safe-buffer@https://registry.npmmirror.com/safe-buffer/-/safe-buffer-5.1.2.tgz 0ms (cache hit)
+178 http cache string_decoder@https://registry.npmmirror.com/string_decoder/-/string_decoder-1.1.1.tgz 0ms (cache hit)
+179 http cache readable-stream@https://registry.npmmirror.com/readable-stream/-/readable-stream-2.3.8.tgz 0ms (cache hit)
+180 http cache string_decoder@https://registry.npmmirror.com/string_decoder/-/string_decoder-1.1.1.tgz 0ms (cache hit)
+181 http cache safe-buffer@https://registry.npmmirror.com/safe-buffer/-/safe-buffer-5.1.2.tgz 0ms (cache hit)
+182 http cache readable-stream@https://registry.npmmirror.com/readable-stream/-/readable-stream-2.3.8.tgz 0ms (cache hit)
+183 silly tarball no local data for @types/node-fetch@https://registry.npmmirror.com/@types/node-fetch/-/node-fetch-2.6.13.tgz. Extracting by manifest.
+184 silly tarball no local data for @fast-csv/parse@https://registry.npmmirror.com/@fast-csv/parse/-/parse-4.3.6.tgz. Extracting by manifest.
+185 silly tarball no local data for @types/node@https://registry.npmmirror.com/@types/node/-/node-14.18.63.tgz. Extracting by manifest.
+186 silly tarball no local data for @fast-csv/format@https://registry.npmmirror.com/@fast-csv/format/-/format-4.3.5.tgz. Extracting by manifest.
+187 silly tarball no local data for zip-stream@https://registry.npmmirror.com/zip-stream/-/zip-stream-4.1.1.tgz. Extracting by manifest.
+188 http cache safe-buffer@https://registry.npmmirror.com/safe-buffer/-/safe-buffer-5.1.2.tgz 0ms (cache hit)
+189 silly tarball no local data for whatwg-url@https://registry.npmmirror.com/whatwg-url/-/whatwg-url-5.0.0.tgz. Extracting by manifest.
+190 silly tarball no local data for webidl-conversions@https://registry.npmmirror.com/webidl-conversions/-/webidl-conversions-3.0.1.tgz. Extracting by manifest.
+191 http cache readable-stream@https://registry.npmmirror.com/readable-stream/-/readable-stream-2.3.8.tgz 0ms (cache hit)
+192 silly tarball no local data for web-streams-polyfill@https://registry.npmmirror.com/web-streams-polyfill/-/web-streams-polyfill-4.0.0-beta.3.tgz. Extracting by manifest.
+193 silly tarball no local data for unzipper@https://registry.npmmirror.com/unzipper/-/unzipper-0.10.14.tgz. Extracting by manifest.
+194 silly tarball no local data for uuid@https://registry.npmmirror.com/uuid/-/uuid-8.3.2.tgz. Extracting by manifest.
+195 silly tarball no local data for tmp@https://registry.npmmirror.com/tmp/-/tmp-0.2.5.tgz. Extracting by manifest.
+196 silly tarball no local data for traverse@https://registry.npmmirror.com/traverse/-/traverse-0.3.9.tgz. Extracting by manifest.
+197 silly tarball no local data for undici-types@https://registry.npmmirror.com/undici-types/-/undici-types-5.26.5.tgz. Extracting by manifest.
+198 silly tarball no local data for tr46@https://registry.npmmirror.com/tr46/-/tr46-0.0.3.tgz. Extracting by manifest.
+199 silly tarball no local data for tar-stream@https://registry.npmmirror.com/tar-stream/-/tar-stream-2.2.0.tgz. Extracting by manifest.
+200 silly tarball no local data for readdir-glob@https://registry.npmmirror.com/readdir-glob/-/readdir-glob-1.1.3.tgz. Extracting by manifest.
+201 silly tarball no local data for rimraf@https://registry.npmmirror.com/rimraf/-/rimraf-2.7.1.tgz. Extracting by manifest.
+202 silly tarball no local data for playwright@https://registry.npmmirror.com/playwright/-/playwright-1.59.1.tgz. Extracting by manifest.
+203 silly tarball no local data for playwright-core@https://registry.npmmirror.com/playwright-core/-/playwright-core-1.59.1.tgz. Extracting by manifest.
+204 silly tarball no local data for setimmediate@https://registry.npmmirror.com/setimmediate/-/setimmediate-1.0.5.tgz. Extracting by manifest.
+205 silly tarball no local data for openai@https://registry.npmmirror.com/openai/-/openai-4.104.0.tgz. Extracting by manifest.
+206 silly tarball no local data for node-fetch@https://registry.npmmirror.com/node-fetch/-/node-fetch-2.7.0.tgz. Extracting by manifest.
+207 silly tarball no local data for mkdirp@https://registry.npmmirror.com/mkdirp/-/mkdirp-0.5.6.tgz. Extracting by manifest.
+208 silly tarball no local data for node-domexception@https://registry.npmmirror.com/node-domexception/-/node-domexception-1.0.0.tgz. Extracting by manifest.
+209 silly tarball no local data for minimatch@https://registry.npmmirror.com/minimatch/-/minimatch-3.1.5.tgz. Extracting by manifest.
+210 silly tarball no local data for lodash.union@https://registry.npmmirror.com/lodash.union/-/lodash.union-4.6.0.tgz. Extracting by manifest.
+211 silly tarball no local data for lodash.isundefined@https://registry.npmmirror.com/lodash.isundefined/-/lodash.isundefined-3.0.1.tgz. Extracting by manifest.
+212 silly tarball no local data for lodash.isplainobject@https://registry.npmmirror.com/lodash.isplainobject/-/lodash.isplainobject-4.0.6.tgz. Extracting by manifest.
+213 silly tarball no local data for lodash.isnil@https://registry.npmmirror.com/lodash.isnil/-/lodash.isnil-4.0.0.tgz. Extracting by manifest.
+214 silly tarball no local data for pako@https://registry.npmmirror.com/pako/-/pako-1.0.11.tgz. Extracting by manifest.
+215 silly tarball no local data for lodash.isfunction@https://registry.npmmirror.com/lodash.isfunction/-/lodash.isfunction-3.0.9.tgz. Extracting by manifest.
+216 silly tarball no local data for lodash.isboolean@https://registry.npmmirror.com/lodash.isboolean/-/lodash.isboolean-3.0.3.tgz. Extracting by manifest.
+217 silly tarball no local data for lodash.flatten@https://registry.npmmirror.com/lodash.flatten/-/lodash.flatten-4.4.0.tgz. Extracting by manifest.
+218 silly tarball no local data for lodash.groupby@https://registry.npmmirror.com/lodash.groupby/-/lodash.groupby-4.6.0.tgz. Extracting by manifest.
+219 silly tarball no local data for lodash.escaperegexp@https://registry.npmmirror.com/lodash.escaperegexp/-/lodash.escaperegexp-4.1.2.tgz. Extracting by manifest.
+220 silly tarball no local data for lodash.difference@https://registry.npmmirror.com/lodash.difference/-/lodash.difference-4.5.0.tgz. Extracting by manifest.
+221 silly tarball no local data for lodash.defaults@https://registry.npmmirror.com/lodash.defaults/-/lodash.defaults-4.2.0.tgz. Extracting by manifest.
+222 silly tarball no local data for listenercount@https://registry.npmmirror.com/listenercount/-/listenercount-1.0.1.tgz. Extracting by manifest.
+223 silly tarball no local data for lie@https://registry.npmmirror.com/lie/-/lie-3.3.0.tgz. Extracting by manifest.
+224 silly tarball no local data for lazystream@https://registry.npmmirror.com/lazystream/-/lazystream-1.0.1.tgz. Extracting by manifest.
+225 silly tarball no local data for jszip@https://registry.npmmirror.com/jszip/-/jszip-3.10.1.tgz. Extracting by manifest.
+226 silly tarball no local data for humanize-ms@https://registry.npmmirror.com/humanize-ms/-/humanize-ms-1.2.1.tgz. Extracting by manifest.
+227 silly tarball no local data for ieee754@https://registry.npmmirror.com/ieee754/-/ieee754-1.2.1.tgz. Extracting by manifest.
+228 silly tarball no local data for fs-constants@https://registry.npmmirror.com/fs-constants/-/fs-constants-1.0.0.tgz. Extracting by manifest.
+229 silly tarball no local data for hasown@https://registry.npmmirror.com/hasown/-/hasown-2.0.3.tgz. Extracting by manifest.
+230 silly tarball no local data for immediate@https://registry.npmmirror.com/immediate/-/immediate-3.0.6.tgz. Extracting by manifest.
+231 silly tarball no local data for fstream@https://registry.npmmirror.com/fstream/-/fstream-1.0.12.tgz. Extracting by manifest.
+232 silly tarball no local data for formdata-node@https://registry.npmmirror.com/formdata-node/-/formdata-node-4.4.1.tgz. Extracting by manifest.
+233 silly tarball no local data for form-data-encoder@https://registry.npmmirror.com/form-data-encoder/-/form-data-encoder-1.7.2.tgz. Extracting by manifest.
+234 silly tarball no local data for form-data@https://registry.npmmirror.com/form-data/-/form-data-4.0.5.tgz. Extracting by manifest.
+235 silly tarball no local data for fast-csv@https://registry.npmmirror.com/fast-csv/-/fast-csv-4.3.6.tgz. Extracting by manifest.
+236 silly tarball no local data for exceljs@https://registry.npmmirror.com/exceljs/-/exceljs-4.4.0.tgz. Extracting by manifest.
+237 silly tarball no local data for duplexer2@https://registry.npmmirror.com/duplexer2/-/duplexer2-0.1.4.tgz. Extracting by manifest.
+238 silly tarball no local data for end-of-stream@https://registry.npmmirror.com/end-of-stream/-/end-of-stream-1.4.5.tgz. Extracting by manifest.
+239 silly tarball no local data for event-target-shim@https://registry.npmmirror.com/event-target-shim/-/event-target-shim-5.0.1.tgz. Extracting by manifest.
+240 silly tarball no local data for dotenv@https://registry.npmmirror.com/dotenv/-/dotenv-16.6.1.tgz. Extracting by manifest.
+241 silly tarball no local data for dayjs@https://registry.npmmirror.com/dayjs/-/dayjs-1.11.20.tgz. Extracting by manifest.
+242 silly tarball no local data for crc32-stream@https://registry.npmmirror.com/crc32-stream/-/crc32-stream-4.0.3.tgz. Extracting by manifest.
+243 silly tarball no local data for compress-commons@https://registry.npmmirror.com/compress-commons/-/compress-commons-4.1.2.tgz. Extracting by manifest.
+244 silly tarball no local data for crc-32@https://registry.npmmirror.com/crc-32/-/crc-32-1.2.2.tgz. Extracting by manifest.
+245 silly tarball no local data for chainsaw@https://registry.npmmirror.com/chainsaw/-/chainsaw-0.1.0.tgz. Extracting by manifest.
+246 silly tarball no local data for buffer-indexof-polyfill@https://registry.npmmirror.com/buffer-indexof-polyfill/-/buffer-indexof-polyfill-1.0.2.tgz. Extracting by manifest.
+247 silly tarball no local data for buffer-crc32@https://registry.npmmirror.com/buffer-crc32/-/buffer-crc32-0.2.13.tgz. Extracting by manifest.
+248 silly tarball no local data for buffers@https://registry.npmmirror.com/buffers/-/buffers-0.1.1.tgz. Extracting by manifest.
+249 silly tarball no local data for buffer@https://registry.npmmirror.com/buffer/-/buffer-5.7.1.tgz. Extracting by manifest.
+250 silly tarball no local data for binary@https://registry.npmmirror.com/binary/-/binary-0.3.0.tgz. Extracting by manifest.
+251 silly tarball no local data for bluebird@https://registry.npmmirror.com/bluebird/-/bluebird-3.4.7.tgz. Extracting by manifest.
+252 silly tarball no local data for brace-expansion@https://registry.npmmirror.com/brace-expansion/-/brace-expansion-1.1.14.tgz. Extracting by manifest.
+253 silly tarball no local data for big-integer@https://registry.npmmirror.com/big-integer/-/big-integer-1.6.52.tgz. Extracting by manifest.
+254 silly tarball no local data for agentkeepalive@https://registry.npmmirror.com/agentkeepalive/-/agentkeepalive-4.6.0.tgz. Extracting by manifest.
+255 silly tarball no local data for archiver-utils@https://registry.npmmirror.com/archiver-utils/-/archiver-utils-2.1.0.tgz. Extracting by manifest.
+256 silly tarball no local data for base64-js@https://registry.npmmirror.com/base64-js/-/base64-js-1.5.1.tgz. Extracting by manifest.
+257 silly tarball no local data for bl@https://registry.npmmirror.com/bl/-/bl-4.1.0.tgz. Extracting by manifest.
+258 silly tarball no local data for archiver@https://registry.npmmirror.com/archiver/-/archiver-5.3.2.tgz. Extracting by manifest.
+259 silly tarball no local data for archiver-utils@https://registry.npmmirror.com/archiver-utils/-/archiver-utils-3.0.4.tgz. Extracting by manifest.
+260 silly tarball no local data for abort-controller@https://registry.npmmirror.com/abort-controller/-/abort-controller-3.0.0.tgz. Extracting by manifest.
+261 silly tarball no local data for string_decoder@https://registry.npmmirror.com/string_decoder/-/string_decoder-1.1.1.tgz. Extracting by manifest.
+262 silly tarball no local data for minimatch@https://registry.npmmirror.com/minimatch/-/minimatch-5.1.9.tgz. Extracting by manifest.
+263 silly tarball no local data for readable-stream@https://registry.npmmirror.com/readable-stream/-/readable-stream-2.3.8.tgz. Extracting by manifest.
+264 silly tarball no local data for brace-expansion@https://registry.npmmirror.com/brace-expansion/-/brace-expansion-2.1.0.tgz. Extracting by manifest.
+265 silly tarball no local data for @types/node@https://registry.npmmirror.com/@types/node/-/node-18.19.130.tgz. Extracting by manifest.
+266 silly tarball no local data for string_decoder@https://registry.npmmirror.com/string_decoder/-/string_decoder-1.1.1.tgz. Extracting by manifest.
+267 silly tarball no local data for safe-buffer@https://registry.npmmirror.com/safe-buffer/-/safe-buffer-5.1.2.tgz. Extracting by manifest.
+268 silly tarball no local data for string_decoder@https://registry.npmmirror.com/string_decoder/-/string_decoder-1.1.1.tgz. Extracting by manifest.
+269 silly tarball no local data for safe-buffer@https://registry.npmmirror.com/safe-buffer/-/safe-buffer-5.1.2.tgz. Extracting by manifest.
+270 silly tarball no local data for readable-stream@https://registry.npmmirror.com/readable-stream/-/readable-stream-2.3.8.tgz. Extracting by manifest.
+271 silly tarball no local data for safe-buffer@https://registry.npmmirror.com/safe-buffer/-/safe-buffer-5.1.2.tgz. Extracting by manifest.
+272 silly tarball no local data for string_decoder@https://registry.npmmirror.com/string_decoder/-/string_decoder-1.1.1.tgz. Extracting by manifest.
+273 silly tarball no local data for readable-stream@https://registry.npmmirror.com/readable-stream/-/readable-stream-2.3.8.tgz. Extracting by manifest.
+274 silly tarball no local data for string_decoder@https://registry.npmmirror.com/string_decoder/-/string_decoder-1.1.1.tgz. Extracting by manifest.
+275 silly tarball no local data for safe-buffer@https://registry.npmmirror.com/safe-buffer/-/safe-buffer-5.1.2.tgz. Extracting by manifest.
+276 silly tarball no local data for readable-stream@https://registry.npmmirror.com/readable-stream/-/readable-stream-2.3.8.tgz. Extracting by manifest.
+277 silly tarball no local data for safe-buffer@https://registry.npmmirror.com/safe-buffer/-/safe-buffer-5.1.2.tgz. Extracting by manifest.
+278 silly tarball no local data for readable-stream@https://registry.npmmirror.com/readable-stream/-/readable-stream-2.3.8.tgz. Extracting by manifest.
+279 warn cleanup Failed to remove some directories [
+279 warn cleanup   [
+279 warn cleanup     'D:\\WorkSpace\\miaoshou-auto\\node_modules\\archiver-utils',
+279 warn cleanup     [Error: EPERM: operation not permitted, rmdir 'D:\WorkSpace\miaoshou-auto\node_modules\archiver-utils\node_modules'] {
+279 warn cleanup       errno: -4048,
+279 warn cleanup       code: 'EPERM',
+279 warn cleanup       syscall: 'rmdir',
+279 warn cleanup       path: 'D:\\WorkSpace\\miaoshou-auto\\node_modules\\archiver-utils\\node_modules'
+279 warn cleanup     }
+279 warn cleanup   ]
+279 warn cleanup ]
+280 verbose stack Error: request to https://registry.npmmirror.com/@types/node-fetch/-/node-fetch-2.6.13.tgz failed: cache mode is 'only-if-cached' but no cached response is available.
+280 verbose stack     at cacheFetch (D:\nodejs\node_global\node_modules\npm\node_modules\make-fetch-happen\lib\cache\index.js:12:13)
+280 verbose stack     at async fetch (D:\nodejs\node_global\node_modules\npm\node_modules\make-fetch-happen\lib\fetch.js:98:7)
+281 error code ENOTCACHED
+282 error request to https://registry.npmmirror.com/@types/node-fetch/-/node-fetch-2.6.13.tgz failed: cache mode is 'only-if-cached' but no cached response is available.
+283 silly unfinished npm timer reify 1777475215816
+284 silly unfinished npm timer reify:unpack 1777475215917
+285 silly unfinished npm timer reifyNode:node_modules/@types/node-fetch 1777475215917
+286 silly unfinished npm timer reifyNode:node_modules/@types/node 1777475215917
+287 silly unfinished npm timer reifyNode:node_modules/@fast-csv/parse 1777475215917
+288 silly unfinished npm timer reifyNode:node_modules/@fast-csv/format 1777475215917
+289 silly unfinished npm timer reifyNode:node_modules/zip-stream 1777475215917
+290 silly unfinished npm timer reifyNode:node_modules/zip-stream/node_modules/archiver-utils 1777475215917
+291 silly unfinished npm timer reifyNode:node_modules/whatwg-url 1777475215917
+292 silly unfinished npm timer reifyNode:node_modules/webidl-conversions 1777475215917
+293 silly unfinished npm timer reifyNode:node_modules/web-streams-polyfill 1777475215917
+294 silly unfinished npm timer reifyNode:node_modules/uuid 1777475215917
+295 silly unfinished npm timer reifyNode:node_modules/unzipper 1777475215917
+296 silly unfinished npm timer reifyNode:node_modules/unzipper/node_modules/string_decoder 1777475215917
+297 silly unfinished npm timer reifyNode:node_modules/unzipper/node_modules/safe-buffer 1777475215917
+298 silly unfinished npm timer reifyNode:node_modules/unzipper/node_modules/readable-stream 1777475215917
+299 silly unfinished npm timer reifyNode:node_modules/traverse 1777475215917
+300 silly unfinished npm timer reifyNode:node_modules/undici-types 1777475215917
+301 silly unfinished npm timer reifyNode:node_modules/tr46 1777475215917
+302 silly unfinished npm timer reifyNode:node_modules/tmp 1777475215917
+303 silly unfinished npm timer reifyNode:node_modules/tar-stream 1777475215917
+304 silly unfinished npm timer reifyNode:node_modules/setimmediate 1777475215917
+305 silly unfinished npm timer reifyNode:node_modules/rimraf 1777475215917
+306 silly unfinished npm timer reifyNode:node_modules/readdir-glob 1777475215917
+307 silly unfinished npm timer reifyNode:node_modules/readdir-glob/node_modules/minimatch 1777475215917
+308 silly unfinished npm timer reifyNode:node_modules/readdir-glob/node_modules/brace-expansion 1777475215917
+309 silly unfinished npm timer reifyNode:node_modules/playwright-core 1777475215917
+310 silly unfinished npm timer reifyNode:node_modules/playwright 1777475215917
+311 silly unfinished npm timer reifyNode:node_modules/pako 1777475215917
+312 silly unfinished npm timer reifyNode:node_modules/openai 1777475215917
+313 silly unfinished npm timer reifyNode:node_modules/openai/node_modules/@types/node 1777475215917
+314 silly unfinished npm timer reifyNode:node_modules/node-fetch 1777475215917
+315 silly unfinished npm timer reifyNode:node_modules/node-domexception 1777475215917
+316 silly unfinished npm timer reifyNode:node_modules/mkdirp 1777475215917
+317 silly unfinished npm timer reifyNode:node_modules/minimatch 1777475215917
+318 silly unfinished npm timer reifyNode:node_modules/lodash.union 1777475215917
+319 silly unfinished npm timer reifyNode:node_modules/lodash.isundefined 1777475215917
+320 silly unfinished npm timer reifyNode:node_modules/lodash.isplainobject 1777475215917
+321 silly unfinished npm timer reifyNode:node_modules/lodash.isnil 1777475215917
+322 silly unfinished npm timer reifyNode:node_modules/lodash.isfunction 1777475215917
+323 silly unfinished npm timer reifyNode:node_modules/lodash.isboolean 1777475215917
+324 silly unfinished npm timer reifyNode:node_modules/lodash.groupby 1777475215917
+325 silly unfinished npm timer reifyNode:node_modules/lodash.flatten 1777475215917
+326 silly unfinished npm timer reifyNode:node_modules/lodash.escaperegexp 1777475215917
+327 silly unfinished npm timer reifyNode:node_modules/lodash.difference 1777475215917
+328 silly unfinished npm timer reifyNode:node_modules/lodash.defaults 1777475215917
+329 silly unfinished npm timer reifyNode:node_modules/listenercount 1777475215917
+330 silly unfinished npm timer reifyNode:node_modules/lie 1777475215917
+331 silly unfinished npm timer reifyNode:node_modules/lazystream 1777475215917
+332 silly unfinished npm timer reifyNode:node_modules/lazystream/node_modules/string_decoder 1777475215917
+333 silly unfinished npm timer reifyNode:node_modules/lazystream/node_modules/safe-buffer 1777475215917
+334 silly unfinished npm timer reifyNode:node_modules/lazystream/node_modules/readable-stream 1777475215917
+335 silly unfinished npm timer reifyNode:node_modules/jszip 1777475215917
+336 silly unfinished npm timer reifyNode:node_modules/jszip/node_modules/string_decoder 1777475215917
+337 silly unfinished npm timer reifyNode:node_modules/jszip/node_modules/safe-buffer 1777475215917
+338 silly unfinished npm timer reifyNode:node_modules/jszip/node_modules/readable-stream 1777475215917
+339 silly unfinished npm timer reifyNode:node_modules/immediate 1777475215917
+340 silly unfinished npm timer reifyNode:node_modules/humanize-ms 1777475215917
+341 silly unfinished npm timer reifyNode:node_modules/ieee754 1777475215917
+342 silly unfinished npm timer reifyNode:node_modules/hasown 1777475215917
+343 silly unfinished npm timer reifyNode:node_modules/fstream 1777475215917
+344 silly unfinished npm timer reifyNode:node_modules/fs-constants 1777475215917
+345 silly unfinished npm timer reifyNode:node_modules/formdata-node 1777475215917
+346 silly unfinished npm timer reifyNode:node_modules/form-data-encoder 1777475215917
+347 silly unfinished npm timer reifyNode:node_modules/form-data 1777475215917
+348 silly unfinished npm timer reifyNode:node_modules/fast-csv 1777475215917
+349 silly unfinished npm timer reifyNode:node_modules/exceljs 1777475215917
+350 silly unfinished npm timer reifyNode:node_modules/event-target-shim 1777475215917
+351 silly unfinished npm timer reifyNode:node_modules/end-of-stream 1777475215917
+352 silly unfinished npm timer reifyNode:node_modules/duplexer2 1777475215917
+353 silly unfinished npm timer reifyNode:node_modules/duplexer2/node_modules/string_decoder 1777475215917
+354 silly unfinished npm timer reifyNode:node_modules/duplexer2/node_modules/safe-buffer 1777475215917
+355 silly unfinished npm timer reifyNode:node_modules/duplexer2/node_modules/readable-stream 1777475215917
+356 silly unfinished npm timer reifyNode:node_modules/dotenv 1777475215917
+357 silly unfinished npm timer reifyNode:node_modules/dayjs 1777475215917
+358 silly unfinished npm timer reifyNode:node_modules/crc-32 1777475215917
+359 silly unfinished npm timer reifyNode:node_modules/crc32-stream 1777475215917
+360 silly unfinished npm timer reifyNode:node_modules/compress-commons 1777475215917
+361 silly unfinished npm timer reifyNode:node_modules/chainsaw 1777475215917
+362 silly unfinished npm timer reifyNode:node_modules/buffer-crc32 1777475215917
+363 silly unfinished npm timer reifyNode:node_modules/buffer-indexof-polyfill 1777475215917
+364 silly unfinished npm timer reifyNode:node_modules/buffers 1777475215917
+365 silly unfinished npm timer reifyNode:node_modules/buffer 1777475215917
+366 silly unfinished npm timer reifyNode:node_modules/brace-expansion 1777475215917
+367 silly unfinished npm timer reifyNode:node_modules/bl 1777475215917
+368 silly unfinished npm timer reifyNode:node_modules/bluebird 1777475215917
+369 silly unfinished npm timer reifyNode:node_modules/binary 1777475215917
+370 silly unfinished npm timer reifyNode:node_modules/big-integer 1777475215917
+371 silly unfinished npm timer reifyNode:node_modules/base64-js 1777475215917
+372 silly unfinished npm timer reifyNode:node_modules/agentkeepalive 1777475215917
+373 silly unfinished npm timer reifyNode:node_modules/archiver-utils 1777475215917
+374 silly unfinished npm timer reifyNode:node_modules/archiver-utils/node_modules/string_decoder 1777475215917
+375 silly unfinished npm timer reifyNode:node_modules/archiver-utils/node_modules/safe-buffer 1777475215917
+376 silly unfinished npm timer reifyNode:node_modules/archiver-utils/node_modules/readable-stream 1777475215917
+377 silly unfinished npm timer reifyNode:node_modules/archiver 1777475215917
+378 silly unfinished npm timer reifyNode:node_modules/abort-controller 1777475215917
+379 verbose cwd D:\WorkSpace\miaoshou-auto
+380 verbose os Windows_NT 10.0.26200
+381 verbose node v24.10.0
+382 verbose npm  v11.7.0
+383 verbose exit 1
+384 verbose code 1
+385 error A complete log of this run can be found in: D:\WorkSpace\miaoshou-auto\.npm-cache\_logs\2026-04-29T15_06_55_512Z-debug-0.log

@@ -101,8 +101,8 @@ class RunLogger {
   fail(record) {
     const normalized = {
       time: new Date().toISOString(),
-      status: 'failed',
-      ...record
+      ...record,
+      status: 'failed'
     };
     this.logs.push(normalized);
     this.failures.push(normalized);

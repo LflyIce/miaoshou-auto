@@ -69,6 +69,9 @@ async function scanRequiredAttributes(page) {
     }
 
     function findCategoryAttributeRoot() {
+      const customRoot = findCustomAttributeRoot();
+      if (customRoot) return customRoot;
+
       const titleNodes = Array.from(document.querySelectorAll(
         'h1,h2,h3,h4,h5,label,span,div,.title,[class*="title"],[class*="header"],.el-card__header,.ant-card-head-title,.el-collapse-item__header,.ant-collapse-header'
       )).filter((el) => visible(el) && isTargetSectionText(normalizedText(el)));
@@ -80,7 +83,7 @@ async function scanRequiredAttributes(page) {
         while (current && current !== document.body && depth < 10) {
           const text = normalizedText(current);
           const controls = current.querySelectorAll(
-            '.el-form-item,.ant-form-item,input,textarea,select,.el-select,.ant-select,[role="combobox"]'
+            '.el-form-item,.ant-form-item,input,textarea,select,.el-select,.ant-select,[role="combobox"],[class*="select"],[class*="dropdown"]'
           ).length;
           const rows = current.querySelectorAll('.el-form-item,.ant-form-item,[class*="form-item"],tr').length;
           if (controls > 0 && rows > 0) {
@@ -110,8 +113,8 @@ async function scanRequiredAttributes(page) {
         '.ant-tabs-tabpane-active, .el-tab-pane:not([aria-hidden="true"]), [role="tabpanel"]:not([hidden]), .el-tabs__content, .ant-tabs-content-holder, .ant-tabs-content'
       )).filter((el) => {
         if (!visible(el)) return false;
-        const controls = el.querySelectorAll('input,textarea,select,.el-select,.ant-select,[role="combobox"]').length;
-        const rows = el.querySelectorAll('.el-form-item,.ant-form-item,[class*="form-item"],tr').length;
+        const controls = el.querySelectorAll('input,textarea,select,.el-select,.ant-select,[role="combobox"],[class*="select"],[class*="dropdown"]').length;
+        const rows = el.querySelectorAll('.category-attr-item,.el-form-item,.ant-form-item,[class*="form-item"],tr').length;
         const required = el.querySelectorAll('.is-required,.required,.ant-form-item-required').length;
         return controls > 0 && rows > 0 && required > 0;
       });
@@ -124,10 +127,85 @@ async function scanRequiredAttributes(page) {
       return activePanels[0] || null;
     }
 
+    function findCustomAttributeRoot() {
+      const rows = findCustomRequiredRows();
+      if (!rows.length) return null;
+
+      const scored = [];
+      for (const row of rows) {
+        let current = row.parentElement;
+        let depth = 0;
+        while (current && current !== document.body && depth < 8) {
+          if (!visible(current)) {
+            current = current.parentElement;
+            depth += 1;
+            continue;
+          }
+
+          const customRows = current.querySelectorAll('.category-attr-item').length;
+          const required = current.querySelectorAll('.category-attr-item-name.required, .required, .is-required, .ant-form-item-required').length;
+          const controls = current.querySelectorAll('input,textarea,select,.el-select,.ant-select,[role="combobox"],.el-cascader,.ant-cascader,[class*="select"],[class*="dropdown"]').length;
+          if (required > 0 && controls > 0) {
+            const text = textOf(current);
+            let score = customRows * 10 + required * 20 + Math.min(controls, 20);
+            if (/类别&属性|类目&属性|分类&属性|商品属性|产品属性/.test(text)) score += 60;
+            if (/发货仓库|运费模板|图片编辑|保存当前配置|模板管理/.test(text)) score -= 40;
+            score -= Math.floor(text.length / 500);
+            scored.push({ el: current, score, length: text.length });
+          }
+
+          current = current.parentElement;
+          depth += 1;
+        }
+      }
+
+      scored.sort((a, b) => b.score - a.score || a.length - b.length);
+      return scored[0] ? scored[0].el : rows[0].parentElement;
+    }
+
+    function findCustomRequiredRows() {
+      const rows = [];
+      const seenRows = new Set();
+
+      Array.from(document.querySelectorAll('.category-attr-item'))
+        .filter((row) => visible(row) && hasEditableControl(row) && isRequiredRow(row))
+        .forEach((row) => {
+          if (!seenRows.has(row)) {
+            seenRows.add(row);
+            rows.push(row);
+          }
+        });
+
+      const requiredNames = Array.from(document.querySelectorAll(
+        '.category-attr-item-name.required, [class*="attr-item-name"].required'
+      )).filter(visible);
+
+      for (const label of requiredNames) {
+        let current = label.parentElement;
+        let depth = 0;
+        while (current && current !== document.body && depth < 8) {
+          if (visible(current) && hasEditableControl(current)) {
+            const text = textOf(current);
+            if (text && text.length <= 800 && !seenRows.has(current)) {
+              seenRows.add(current);
+              rows.push(current);
+              break;
+            }
+          }
+          current = current.parentElement;
+          depth += 1;
+        }
+      }
+
+      return rows;
+    }
+
     function collectRows(root) {
       const selectors = [
+        '.category-attr-item',
         '.el-form-item',
         '.ant-form-item',
+        '[class*="category-attr"]',
         '[class*="form-item"]',
         '[class*="attribute-item"]',
         '[class*="property-item"]',
@@ -147,6 +225,15 @@ async function scanRequiredAttributes(page) {
           rows.push(el);
         });
       }
+
+      findCustomRequiredRows().forEach((el) => {
+        if (seenRows.has(el) || !root.contains(el) || !visible(el)) return;
+        const text = textOf(el);
+        if (!text || text.length > 800) return;
+        if (!hasEditableControl(el)) return;
+        seenRows.add(el);
+        rows.push(el);
+      });
 
       return rows.filter((row) => !rows.some((other) => other !== row && row.contains(other)));
     }
@@ -171,6 +258,7 @@ async function scanRequiredAttributes(page) {
 
     function isRequiredRow(row) {
       const classText = `${row.className || ''}`;
+      if (/(\s|^)required(\s|$)|is-required|ant-form-item-required/i.test(classText)) return true;
       if (/is-required|required|ant-form-item-required/i.test(classText) && hasRequiredPseudo(row)) return true;
       if (hasRequiredPseudo(row)) return true;
 
@@ -180,6 +268,7 @@ async function scanRequiredAttributes(page) {
       return possibleMarks.some((el) => {
         const text = textOf(el);
         const className = `${el.className || ''}`;
+        if (/(\s|^)required(\s|$)|is-required|ant-form-item-required/i.test(className)) return true;
         if (hasRequiredPseudo(el)) return true;
         if (!text.includes('*') && !/required|is-required|ant-form-item-required/i.test(className)) return false;
         return text.includes('*') ? isRedColor(window.getComputedStyle(el).color) : hasRequiredPseudo(el);
@@ -197,6 +286,8 @@ async function scanRequiredAttributes(page) {
 
     function extractName(row) {
       const selectors = [
+        '.category-attr-item-name',
+        '[class*="attr-item-name"]',
         '.el-form-item__label',
         '.ant-form-item-label label',
         '.ant-form-item-label',
@@ -224,7 +315,7 @@ async function scanRequiredAttributes(page) {
 
     function hasEditableControl(row) {
       return Boolean(row.querySelector(
-        'textarea, input:not([type="hidden"]), select, .el-select, .ant-select, [role="combobox"], [contenteditable="true"], .el-cascader, .ant-cascader, .el-date-editor, .ant-picker'
+        'textarea, input:not([type="hidden"]), select, .el-select, .ant-select, [role="combobox"], [contenteditable="true"], .el-cascader, .ant-cascader, .el-date-editor, .ant-picker, [class*="select"], [class*="dropdown"]'
       ));
     }
 

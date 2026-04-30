@@ -8,6 +8,7 @@ const { fillAttribute } = require('./filler');
 const { RunLogger } = require('./logger');
 const { navigateToModule } = require('./module_navigator');
 const { chooseBestOption } = require('./option_matcher');
+const { activateManualPage } = require('./page_selector');
 const { readProductInfo } = require('./page_reader');
 const {
   ensureProjectDirs,
@@ -33,7 +34,7 @@ async function main() {
 
   const browser = await chromium.launch(getBrowserLaunchOptions(config));
   const context = await browser.newContext(getBrowserContextOptions(config, storageState ? { storageState } : {}));
-  const page = await context.newPage();
+  let page = await context.newPage();
 
   const targetUrl = config.productEditUrl || config.startUrl;
   let summary = {
@@ -50,6 +51,7 @@ async function main() {
 
     if (config.behavior.waitForManualPage || !config.productEditUrl) {
       await waitForEnter('[等待] 请在浏览器中打开或确认当前商品编辑页，然后按回车开始扫描');
+      page = await activateManualPage(context, page);
     }
 
     console.log('[1/5] 读取商品标题和图片...');
