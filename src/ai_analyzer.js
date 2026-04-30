@@ -4,10 +4,10 @@ function getPromptTemplates() {
   return readJSONSync(resolveRoot('config', 'prompt_templates.json'), {});
 }
 
-async function analyzeAttributes(productInfo, requiredAttributes) {
+async function analyzeAttributes(productInfo, requiredAttributes, knowledgeContext = null) {
   const config = loadConfig();
   const templates = getPromptTemplates();
-  const apiKey = process.env[config.ai.apiKeyEnv || 'OPENAI_API_KEY'];
+  const apiKey = process.env[config.ai.apiKeyEnv || 'ZAI_API_KEY'];
 
   if (!apiKey) {
     return {
@@ -15,7 +15,7 @@ async function analyzeAttributes(productInfo, requiredAttributes) {
         name: attr.name,
         value: null,
         confidence: 0,
-        reason: `缺少环境变量 ${config.ai.apiKeyEnv || 'OPENAI_API_KEY'}`,
+        reason: `缺少环境变量 ${config.ai.apiKeyEnv || 'ZAI_API_KEY'}`,
         need_manual: true
       }))
     };
@@ -25,12 +25,14 @@ async function analyzeAttributes(productInfo, requiredAttributes) {
     productInfo: {
       title: productInfo.title || '',
       images: productInfo.images || [],
-      url: productInfo.url || ''
+      url: productInfo.url || '',
+      categoryName: productInfo.categoryName || ''
     },
     requiredAttributes: requiredAttributes.map((attr) => ({
       name: attr.name,
       controlType: attr.controlType,
-      options: attr.options || []
+      options: attr.options || [],
+      errorMessage: attr.errorMessage || ''
     })),
     outputFormat: {
       attributes: [
@@ -44,6 +46,9 @@ async function analyzeAttributes(productInfo, requiredAttributes) {
       ]
     }
   };
+  if (knowledgeContext) {
+    payload.categoryKnowledgeReference = knowledgeContext;
+  }
 
   const userText = `请分析下面商品的必填属性，并只返回 JSON。\n${JSON.stringify(payload, null, 2)}`;
   const requestImages = config.ai.sendImages === false ? [] : (productInfo.images || []);
@@ -76,7 +81,7 @@ async function analyzeAttributes(productInfo, requiredAttributes) {
 async function secondChoice(input) {
   const config = loadConfig();
   const templates = getPromptTemplates();
-  const apiKey = process.env[config.ai.apiKeyEnv || 'OPENAI_API_KEY'];
+  const apiKey = process.env[config.ai.apiKeyEnv || 'ZAI_API_KEY'];
   if (!apiKey) return null;
 
   const payload = {
@@ -128,6 +133,58 @@ async function secondChoice(input) {
   }
 }
 
+async function rewriteProductTitles(productInfo) {
+  const config = loadConfig();
+  const templates = getPromptTemplates();
+  const apiKey = process.env[config.ai.apiKeyEnv || 'ZAI_API_KEY'];
+  if (!apiKey) {
+    throw new Error(`缺少环境变量 ${config.ai.apiKeyEnv || 'ZAI_API_KEY'}`);
+  }
+
+  const payload = {
+    sourceTitle: productInfo.title || '',
+    images: productInfo.images || [],
+    requirements: [
+      'First identify the source title language',
+      'If the source title is Japanese translate it into Chinese first',
+      'Use Chinese as the working language to expand and rewrite the product title based on Japanese marketplace search habits and search keywords',
+      'The expanded Chinese working title should include product core terms usage scenarios material structure selling points and common synonym search terms',
+      'Translate the expanded Chinese working title into Japanese for japaneseTitle',
+      'Translate the expanded Chinese working title into English for englishTitle',
+      'japaneseTitle must be 150 to 170 characters',
+      'englishTitle must be 150 to 170 characters',
+      'Do not include any punctuation in either final title',
+      'Do not include line breaks emoji brand names or unsupported claims'
+    ],
+    outputFormat: {
+      expandedChineseTitle: '用于扩写的中文标题',
+      japaneseTitle: '日语标题',
+      englishTitle: 'English title'
+    }
+  };
+
+  const userText = `Generate optimized marketplace titles using this exact workflow and return JSON only.\n${JSON.stringify(payload, null, 2)}`;
+  const requestImages = config.ai.sendImages === false ? [] : (productInfo.images || []);
+  const messagesWithImages = [
+    { role: 'system', content: templates.titleRewriteSystem || defaultTitleRewritePrompt() },
+    { role: 'user', content: buildVisionContent(userText, requestImages) }
+  ];
+
+  try {
+    const content = await postChatCompletion(config, apiKey, messagesWithImages);
+    return normalizeTitles(extractJSON(content));
+  } catch (error) {
+    if (requestImages.length) {
+      const content = await postChatCompletion(config, apiKey, [
+        { role: 'system', content: templates.titleRewriteSystem || defaultTitleRewritePrompt() },
+        { role: 'user', content: userText }
+      ]);
+      return normalizeTitles(extractJSON(content));
+    }
+    throw error;
+  }
+}
+
 async function postChatCompletion(config, apiKey, messages) {
   if (typeof fetch !== 'function') {
     throw new Error('当前 Node.js 没有 fetch，请使用 Node.js 18 或更高版本');
@@ -151,6 +208,22 @@ async function postChatCompletion(config, apiKey, messages) {
     }
     throw error;
   }
+}
+
+function normalizeTitles(parsed) {
+  return {
+    japaneseTitle: sanitizeTitle(parsed.japaneseTitle || parsed.productTitle || parsed.title || ''),
+    englishTitle: sanitizeTitle(parsed.englishTitle || parsed.enTitle || parsed.english || '')
+  };
+}
+
+function sanitizeTitle(title) {
+  const cleaned = String(title || '')
+    .replace(/[!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]/g, ' ')
+    .replace(/[，。！？、；：￥（）【】《》“”‘’—…·]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return Array.from(cleaned).slice(0, 170).join('').trim();
 }
 
 async function requestCompletion(endpoint, apiKey, body) {
@@ -251,8 +324,13 @@ function defaultSecondChoicePrompt() {
   return '你只能从 available_options 中选择一个最合适的页面选项，返回严格 JSON。';
 }
 
+function defaultTitleRewritePrompt() {
+  return 'You are a Japanese cross border ecommerce title optimization assistant. Always use this workflow source title language detection then Chinese working rewrite then Japanese and English translation. If the source title is already Japanese translate it into Chinese first then expand and rewrite in Chinese according to Japanese marketplace search habits and keywords then translate into Japanese and English. Final japaneseTitle and englishTitle must be 150 to 170 characters and contain no punctuation no line breaks no emoji no invented brand names and no unsupported claims. Return strict JSON only with expandedChineseTitle japaneseTitle and englishTitle.';
+}
+
 module.exports = {
   analyzeAttributes,
   secondChoice,
+  rewriteProductTitles,
   extractJSON
 };

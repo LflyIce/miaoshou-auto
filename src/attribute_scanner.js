@@ -20,7 +20,8 @@ async function scanRequiredAttributes(page) {
     const seen = new Set();
 
     candidates.forEach((row, index) => {
-      if (!isRequiredRow(row)) return;
+      const validationError = extractValidationError(row);
+      if (!isRequiredRow(row) && !validationError) return;
       if (!hasEditableControl(row)) return;
 
       const name = extractName(row);
@@ -28,7 +29,6 @@ async function scanRequiredAttributes(page) {
 
       const controlType = detectControlType(row);
       const alreadyFilled = detectAlreadyFilled(row, controlType);
-      if (alreadyFilled) return;
 
       const key = `${name}::${controlType}`;
       if (seen.has(key)) return;
@@ -42,6 +42,7 @@ async function scanRequiredAttributes(page) {
         controlType,
         options: [],
         alreadyFilled,
+        errorMessage: validationError,
         _rowId: rowId,
         _rowSelector: `[data-ms-attr-row="${rowId}"]`
       });
@@ -126,6 +127,8 @@ async function scanRequiredAttributes(page) {
 
     function collectRows(root) {
       const selectors = [
+        '.category-attr-list > .category-attr-item',
+        '.category-attr-item',
         '.el-form-item',
         '.ant-form-item',
         '[class*="form-item"]',
@@ -140,15 +143,29 @@ async function scanRequiredAttributes(page) {
       for (const selector of selectors) {
         root.querySelectorAll(selector).forEach((el) => {
           if (seenRows.has(el) || !visible(el)) return;
+          if (!isCategoryAttrItem(el) && closestCategoryAttrItem(el, root) && selector !== '.category-attr-item') return;
           const text = textOf(el);
-          if (!text || text.length > 600) return;
+          if (!text) return;
+          if (!isCategoryAttrItem(el) && text.length > 600) return;
           if (!hasEditableControl(el)) return;
           seenRows.add(el);
           rows.push(el);
         });
       }
 
-      return rows.filter((row) => !rows.some((other) => other !== row && row.contains(other)));
+      return rows.filter((row) => {
+        if (isCategoryAttrItem(row)) return true;
+        return !rows.some((other) => other !== row && other.contains(row));
+      });
+    }
+
+    function isCategoryAttrItem(el) {
+      return Boolean(el && el.classList && el.classList.contains('category-attr-item') && el.querySelector('.category-attr-item-name'));
+    }
+
+    function closestCategoryAttrItem(el, root) {
+      const item = el && el.closest ? el.closest('.category-attr-item') : null;
+      return item && root.contains(item) ? item : null;
     }
 
     function isRedColor(color) {
@@ -171,19 +188,41 @@ async function scanRequiredAttributes(page) {
 
     function isRequiredRow(row) {
       const classText = `${row.className || ''}`;
-      if (/is-required|required|ant-form-item-required/i.test(classText) && hasRequiredPseudo(row)) return true;
+      if (/is-required|required|ant-form-item-required/i.test(classText)) return true;
       if (hasRequiredPseudo(row)) return true;
 
+      const categoryName = row.querySelector('.category-attr-item-name');
+      if (categoryName && /required/i.test(`${categoryName.className || ''}`)) return true;
+
       const possibleMarks = Array.from(row.querySelectorAll(
-        'label, span, i, em, b, .required, .is-required, .ant-form-item-required, .el-form-item__label'
+        'label, span, i, em, b, .required, .is-required, .ant-form-item-required, .el-form-item__label, .category-attr-item-name'
       ));
       return possibleMarks.some((el) => {
         const text = textOf(el);
         const className = `${el.className || ''}`;
         if (hasRequiredPseudo(el)) return true;
+        if (/required|is-required|ant-form-item-required/i.test(className)) return true;
         if (!text.includes('*') && !/required|is-required|ant-form-item-required/i.test(className)) return false;
-        return text.includes('*') ? isRedColor(window.getComputedStyle(el).color) : hasRequiredPseudo(el);
+        return text.includes('*') ? true : hasRequiredPseudo(el);
       });
+    }
+
+    function extractValidationError(row) {
+      const selectors = [
+        '.el-form-item__error',
+        '.ant-form-item-explain-error',
+        '.ant-form-item-extra',
+        '.invalid-feedback',
+        '[role="alert"]',
+        '[class*="error"]',
+        '[class*="Error"]'
+      ];
+      const messages = Array.from(row.querySelectorAll(selectors.join(',')))
+        .filter(visible)
+        .map(textOf)
+        .filter((text) => text && /不能为空|必填|请选择|未填写|有误|错误|校验|验证|required/i.test(text))
+        .filter((text) => text.length <= 220);
+      return Array.from(new Set(messages)).join(' | ');
     }
 
     function cleanupName(text) {
@@ -196,6 +235,11 @@ async function scanRequiredAttributes(page) {
     }
 
     function extractName(row) {
+      const categoryName = row.querySelector('.category-attr-item-name') ||
+        (closestCategoryAttrItem(row, document.body) && closestCategoryAttrItem(row, document.body).querySelector('.category-attr-item-name'));
+      const categoryNameText = cleanupName(textOf(categoryName));
+      if (categoryNameText && categoryNameText.length <= 60) return categoryNameText;
+
       const selectors = [
         '.el-form-item__label',
         '.ant-form-item-label label',
@@ -258,21 +302,23 @@ async function scanRequiredAttributes(page) {
       }
 
       const selectedNodes = Array.from(row.querySelectorAll(
-        '.el-tag, .el-select__tags-text, .ant-select-selection-item, [class*="selection-item"]'
+        '.el-tag, .el-select__tags-text, .ant-select-selection-item, [class*="selection-item"], .el-select-dropdown__item.selected, .jx-pro-option.selected'
       )).map(textOf).filter((text) => text && !isPlaceholderText(text));
       if (selectedNodes.length) return true;
 
       const inputs = Array.from(row.querySelectorAll('.el-select input, .ant-select input, [role="combobox"], input:not([type="hidden"])'));
       return inputs.some((input) => {
-        const value = String(input.value || '').trim();
-        return value && !isPlaceholderText(value);
+        const value = String(input.value || input.getAttribute('title') || '').trim();
+        if (!value || isPlaceholderText(value)) return false;
+        if (/不能为空|必填|请选择|未填写|有误|错误|校验|验证/i.test(value)) return false;
+        return true;
       });
     }
   });
 
   for (const row of rows) {
     row.name = cleanAttributeName(row.name);
-    if (row.controlType === 'select' || row.controlType === 'multi_select') {
+    if ((!row.alreadyFilled || row.errorMessage) && (row.controlType === 'select' || row.controlType === 'multi_select')) {
       try {
         row.options = await readOptionsForAttribute(page, row);
       } catch (error) {

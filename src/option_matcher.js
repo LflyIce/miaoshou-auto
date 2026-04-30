@@ -54,6 +54,10 @@ async function chooseBestOption({
   const value = Array.isArray(inferredValue) ? String(inferredValue[0] || '') : String(inferredValue || '').trim();
 
   if (!options.length) {
+    const fallback = chooseFallbackText(attrName, fallbackRules);
+    if (fallback) {
+      return ok(fallback, 'fallback_unverified', 0.35, '页面未读到选项，使用字段兜底值并在下拉中搜索');
+    }
     return manual('页面没有读取到真实可选项');
   }
   if (!value) {
@@ -146,12 +150,18 @@ function findOption(value, options) {
 async function tryFallbackOrManual({ attrName, options, fallbackRules, reason }) {
   const fallback = chooseFallback(attrName, options, fallbackRules);
   if (fallback) return ok(fallback.value, 'fallback', fallback.confidence, fallback.reason);
+  const neutral = chooseNeutralOption(options);
+  if (neutral) {
+    return ok(neutral, 'neutral_fallback', 0.45, `${reason || 'AI 无法判断'}，已选择页面中较中肯的可用项`);
+  }
   return manual(reason || '需要人工处理');
 }
 
 function chooseFallback(attrName, options, fallbackRules) {
   const byAttribute = fallbackRules.byAttribute || {};
-  for (const [name, values] of Object.entries(byAttribute)) {
+  const entries = Object.entries(byAttribute)
+    .sort((a, b) => String(b[0]).length - String(a[0]).length);
+  for (const [name, values] of entries) {
     if (String(attrName || '').includes(name) || name.includes(String(attrName || ''))) {
       const matched = matchFallbackValue(values, options);
       if (matched) {
@@ -164,10 +174,6 @@ function chooseFallback(attrName, options, fallbackRules) {
     }
   }
 
-  const sensitiveWords = fallbackRules.sensitiveAttributes || [];
-  const isSensitive = sensitiveWords.some((word) => String(attrName || '').includes(word));
-  if (isSensitive) return null;
-
   const globalMatched = matchFallbackValue(fallbackRules.global || [], options);
   if (globalMatched) {
     return {
@@ -177,6 +183,39 @@ function chooseFallback(attrName, options, fallbackRules) {
     };
   }
   return null;
+}
+
+function chooseFallbackText(attrName, fallbackRules) {
+  const byAttribute = fallbackRules.byAttribute || {};
+  const entries = Object.entries(byAttribute)
+    .sort((a, b) => String(b[0]).length - String(a[0]).length);
+  for (const [name, values] of entries) {
+    if (String(attrName || '').includes(name) || name.includes(String(attrName || ''))) {
+      const value = (values || []).map((item) => String(item || '').trim()).find(Boolean);
+      if (value) return value;
+    }
+  }
+  return (fallbackRules.global || []).map((item) => String(item || '').trim()).find(Boolean) || '';
+}
+
+function chooseNeutralOption(options) {
+  const neutralWords = [
+    '不适用',
+    '无需',
+    '无',
+    '否',
+    '其他',
+    '其它',
+    '通用',
+    '默认',
+    '普通',
+    '标准',
+    '未分类',
+    '无品牌'
+  ];
+  const matched = matchFallbackValue(neutralWords, options);
+  if (matched) return matched;
+  return (options || []).find((option) => normalizeText(option)) || null;
 }
 
 function matchFallbackValue(values, options) {

@@ -39,9 +39,10 @@ function loadConfig() {
     productEditUrl: '',
     headless: false,
     ai: {
-      baseURL: 'https://api.openai.com/v1',
-      model: 'gpt-4o-mini',
-      apiKeyEnv: 'OPENAI_API_KEY'
+      baseURL: 'https://open.bigmodel.cn/api/paas/v4/',
+      model: 'GLM-5V-Turbo',
+      apiKeyEnv: 'ZAI_API_KEY',
+      sendImages: true
     },
     thresholds: {
       autoSelectScore: 0.85,
@@ -60,6 +61,20 @@ function loadConfig() {
       screenshotOnError: true,
       skipAlreadyFilled: true,
       waitForManualPage: true
+    },
+    knowledgeBase: {
+      enabled: true,
+      path: 'storage/category_attribute_knowledge.json',
+      maxSamplesPerAttribute: 20,
+      maxTitlesPerCategory: 5
+    },
+    batch: {
+      maxProducts: 0,
+      saveRetryLimit: 1,
+      saveFeedbackTimeoutMs: 6000,
+      nextProductWaitMs: 4000,
+      saveButtonSelectors: [],
+      nextProductSelectors: []
     }
   };
   const userConfig = readJSONSync(resolveRoot('config', 'config.json'), {});

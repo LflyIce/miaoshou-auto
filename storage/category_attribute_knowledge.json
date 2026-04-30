@@ -1,0 +1,636 @@
+{
+  "version": 1,
+  "updatedAt": "2026-04-30T09:58:50.175Z",
+  "categories": {
+    "家居、厨房用品家具厨房家具储物岛与推车其他储物岛台与推车": {
+      "categoryName": "家居、厨房用品 / 家具 / 厨房家具 / 储物岛与推车 / 其他（储物岛台与推车）",
+      "key": "家居、厨房用品家具厨房家具储物岛与推车其他储物岛台与推车",
+      "firstSeenAt": "2026-04-30T09:18:27.203Z",
+      "lastSeenAt": "2026-04-30T09:46:02.705Z",
+      "timesSeen": 6,
+      "sampleTitles": [
+        "厨房夹缝置物架多功能厨房置物架微波炉多层夹缝落地放锅具储物架",
+        "厨房夹缝碳钢置物架多层家用多功能储物架锅具烤箱微波炉收纳架子",
+        "キッチンラックスリム隙間収納棚多段式落地タイプオーブンレンジ置き台カーボンスチール製耐荷重強化調節可能な棚板キャスター付き移動楽々冷蔵庫サイドラック鍋収納省スペース多機能整理整頓使いやすい頑丈な構造家電置き場に最適幅広対応モデル狭い場所設置可能便利な収納アイテム収納力抜群",
+        "キッチンラックスリム隙間収納オーブンレンジ置き台多段式落地タイプカーボンスチール製耐荷重強化調節可能な棚板キャスター付き移動楽々冷蔵庫サイドラック鍋収納省スペース多機能整理整頓使いやすい頑丈な構造家電置き場に最適幅広対応モデル狭い場所設置可能便利な収納アイテム収納力抜群",
+        "キッチンラックスリム隙間収納オーブンレンジラック多層落地式カーボンスチール製耐荷重強化調節可能な棚板キャスター付き冷蔵庫横鍋収納棚省スペース多機能厨房用品整理整頓使いやすい頑丈な作り家電置き場として最適な幅広対応モデル狭い場所にも設置可能な便利なアイテム"
+      ],
+      "attributes": [
+        {
+          "name": "材料",
+          "controlType": "multi_select",
+          "required": true,
+          "options": [],
+          "values": {},
+          "firstSeenAt": "2026-04-30T09:18:27.203Z",
+          "lastSeenAt": "2026-04-30T09:45:27.323Z",
+          "timesSeen": 6
+        },
+        {
+          "name": "材料成型方式",
+          "controlType": "multi_select",
+          "required": true,
+          "options": [
+            "其他",
+            "细工木板（大芯板）",
+            "纤维板（密度板/纤维密度板）",
+            "免漆板（生态板/三聚氰胺板）",
+            "阻燃板（防火板）",
+            "实木颗粒板",
+            "刨花板",
+            "胶合板（夹板/细芯板）"
+          ],
+          "values": {
+            "其他": {
+              "value": "其他",
+              "count": 2,
+              "lastUsedAt": "2026-04-30T09:46:02.705Z",
+              "sampleTitle": "厨房夹缝置物架多功能厨房置物架微波炉多层夹缝落地放锅具储物架"
+            }
+          },
+          "firstSeenAt": "2026-04-30T09:18:27.203Z",
+          "lastSeenAt": "2026-04-30T09:46:02.705Z",
+          "timesSeen": 6
+        },
+        {
+          "name": "材质",
+          "controlType": "select",
+          "required": true,
+          "options": [
+            "人造板",
+            "实木板"
+          ],
+          "values": {
+            "人造板": {
+              "value": "人造板",
+              "count": 2,
+              "lastUsedAt": "2026-04-30T09:46:00.815Z",
+              "sampleTitle": "厨房夹缝置物架多功能厨房置物架微波炉多层夹缝落地放锅具储物架"
+            }
+          },
+          "firstSeenAt": "2026-04-30T09:18:27.203Z",
+          "lastSeenAt": "2026-04-30T09:46:00.815Z",
+          "timesSeen": 6
+        },
+        {
+          "name": "供电方式",
+          "controlType": "select",
+          "required": true,
+          "options": [
+            "无需接电使用",
+            "插头供电",
+            "太阳能充电",
+            "电池供电（带插头）",
+            "电池供电（无插头）",
+            "USB供电",
+            "接室电/硬接线",
+            "DC供电"
+          ],
+          "values": {
+            "无需接电使用": {
+              "value": "无需接电使用",
+              "count": 4,
+              "lastUsedAt": "2026-04-30T09:45:57.193Z",
+              "sampleTitle": "厨房夹缝置物架多功能厨房置物架微波炉多层夹缝落地放锅具储物架"
+            }
+          },
+          "firstSeenAt": "2026-04-30T09:18:27.203Z",
+          "lastSeenAt": "2026-04-30T09:45:57.193Z",
+          "timesSeen": 6
+        },
+        {
+          "name": "是否含有木质材料",
+          "controlType": "select",
+          "required": true,
+          "options": [],
+          "values": {},
+          "firstSeenAt": "2026-04-30T09:18:27.203Z",
+          "lastSeenAt": "2026-04-30T09:45:27.323Z",
+          "timesSeen": 6
+        },
+        {
+          "name": "树种",
+          "controlType": "multi_select",
+          "required": true,
+          "options": [
+            "硬木",
+            "软木"
+          ],
+          "values": {
+            "硬木": {
+              "value": "硬木",
+              "count": 2,
+              "lastUsedAt": "2026-04-30T09:45:58.947Z",
+              "sampleTitle": "厨房夹缝置物架多功能厨房置物架微波炉多层夹缝落地放锅具储物架"
+            }
+          },
+          "firstSeenAt": "2026-04-30T09:18:27.203Z",
+          "lastSeenAt": "2026-04-30T09:45:58.947Z",
+          "timesSeen": 6
+        },
+        {
+          "name": "特殊功能",
+          "controlType": "select",
+          "required": true,
+          "options": [
+            "轮子",
+            "早餐吧",
+            "封闭式存储",
+            "砧板",
+            "落叶",
+            "抽屉",
+            "开放式存储",
+            "毛巾架",
+            "垃圾桶",
+            "酒柜",
+            "其他特殊功能"
+          ],
+          "values": {
+            "轮子": {
+              "value": "轮子",
+              "count": 4,
+              "lastUsedAt": "2026-04-30T09:45:55.353Z",
+              "sampleTitle": "厨房夹缝置物架多功能厨房置物架微波炉多层夹缝落地放锅具储物架"
+            }
+          },
+          "firstSeenAt": "2026-04-30T09:18:27.203Z",
+          "lastSeenAt": "2026-04-30T09:45:55.353Z",
+          "timesSeen": 6
+        }
+      ]
+    },
+    "家居、厨房用品家居装饰台镜、穿衣镜落地镜和全身镜": {
+      "categoryName": "家居、厨房用品 / 家居装饰 / 台镜、穿衣镜 / 落地镜和全身镜",
+      "key": "家居、厨房用品家居装饰台镜、穿衣镜落地镜和全身镜",
+      "firstSeenAt": "2026-04-30T09:47:54.120Z",
+      "lastSeenAt": "2026-04-30T09:49:33.221Z",
+      "timesSeen": 2,
+      "sampleTitles": [
+        "大型全身鏡フルレングスミラー姿見自立式スタンド付き立て掛け壁掛け兼用ドレッサーミラーアルミ合金フレーム薄型軽量大型サイズおしゃれインテリア北欧モダンシンプルデザイン寝室玄関クローゼット前試着用衣類コーディネート確認賃貸アパートマンション一人暮らし学生寮省スペース収納多機能安全防爆フィルム加工高精細クリアな鏡面映りが良い雑誌掲載モデル",
+        "全身穿衣落地镜子家用壁挂贴墙镜网红全身试衣镜出租房宿舍落地镜"
+      ],
+      "attributes": [
+        {
+          "name": "安装类型",
+          "controlType": "select",
+          "required": true,
+          "options": [
+            "壁挂架",
+            "梳妆台架",
+            "门架",
+            "桌面架",
+            "落地架"
+          ],
+          "values": {
+            "落地架": {
+              "value": "落地架",
+              "count": 1,
+              "lastUsedAt": "2026-04-30T09:48:40.003Z",
+              "sampleTitle": "全身穿衣落地镜子家用壁挂贴墙镜网红全身试衣镜出租房宿舍落地镜"
+            }
+          },
+          "firstSeenAt": "2026-04-30T09:47:54.120Z",
+          "lastSeenAt": "2026-04-30T09:49:33.221Z",
+          "timesSeen": 2
+        },
+        {
+          "name": "表面推荐",
+          "controlType": "multi_select",
+          "required": true,
+          "options": [],
+          "values": {},
+          "firstSeenAt": "2026-04-30T09:47:54.120Z",
+          "lastSeenAt": "2026-04-30T09:49:33.221Z",
+          "timesSeen": 2
+        },
+        {
+          "name": "反射层材料",
+          "controlType": "select",
+          "required": true,
+          "options": [
+            "银镜（镀银）",
+            "铝镜（镀铝）",
+            "铜镜"
+          ],
+          "values": {
+            "铝镜镀铝": {
+              "value": "铝镜（镀铝）",
+              "count": 1,
+              "lastUsedAt": "2026-04-30T09:48:34.340Z",
+              "sampleTitle": "全身穿衣落地镜子家用壁挂贴墙镜网红全身试衣镜出租房宿舍落地镜"
+            }
+          },
+          "firstSeenAt": "2026-04-30T09:47:54.120Z",
+          "lastSeenAt": "2026-04-30T09:49:33.221Z",
+          "timesSeen": 2
+        },
+        {
+          "name": "方向",
+          "controlType": "select",
+          "required": true,
+          "options": [
+            "水平",
+            "垂直"
+          ],
+          "values": {
+            "垂直": {
+              "value": "垂直",
+              "count": 1,
+              "lastUsedAt": "2026-04-30T09:48:42.839Z",
+              "sampleTitle": "全身穿衣落地镜子家用壁挂贴墙镜网红全身试衣镜出租房宿舍落地镜"
+            }
+          },
+          "firstSeenAt": "2026-04-30T09:47:54.120Z",
+          "lastSeenAt": "2026-04-30T09:49:33.221Z",
+          "timesSeen": 2
+        },
+        {
+          "name": "风格",
+          "controlType": "select",
+          "required": true,
+          "options": [],
+          "values": {},
+          "firstSeenAt": "2026-04-30T09:47:54.120Z",
+          "lastSeenAt": "2026-04-30T09:49:33.221Z",
+          "timesSeen": 2
+        },
+        {
+          "name": "供电方式",
+          "controlType": "select",
+          "required": true,
+          "options": [
+            "干电池供电",
+            "无需接电使用",
+            "插头供电",
+            "太阳能充电",
+            "USB供电",
+            "接室电/硬接线",
+            "USB充电（内置电池）",
+            "DC供电"
+          ],
+          "values": {
+            "无需接电使用": {
+              "value": "无需接电使用",
+              "count": 1,
+              "lastUsedAt": "2026-04-30T09:48:45.726Z",
+              "sampleTitle": "全身穿衣落地镜子家用壁挂贴墙镜网红全身试衣镜出租房宿舍落地镜"
+            }
+          },
+          "firstSeenAt": "2026-04-30T09:47:54.120Z",
+          "lastSeenAt": "2026-04-30T09:49:33.221Z",
+          "timesSeen": 2
+        },
+        {
+          "name": "镜面基底材料",
+          "controlType": "select",
+          "required": true,
+          "options": [
+            "浮法玻璃",
+            "钢化玻璃",
+            "亚克力",
+            "PET"
+          ],
+          "values": {
+            "浮法玻璃": {
+              "value": "浮法玻璃",
+              "count": 1,
+              "lastUsedAt": "2026-04-30T09:48:31.598Z",
+              "sampleTitle": "全身穿衣落地镜子家用壁挂贴墙镜网红全身试衣镜出租房宿舍落地镜"
+            }
+          },
+          "firstSeenAt": "2026-04-30T09:47:54.120Z",
+          "lastSeenAt": "2026-04-30T09:49:33.221Z",
+          "timesSeen": 2
+        },
+        {
+          "name": "框架材质",
+          "controlType": "multi_select",
+          "required": true,
+          "options": [],
+          "values": {},
+          "firstSeenAt": "2026-04-30T09:47:54.120Z",
+          "lastSeenAt": "2026-04-30T09:49:33.221Z",
+          "timesSeen": 2
+        },
+        {
+          "name": "形状",
+          "controlType": "select",
+          "required": true,
+          "options": [
+            "矩形",
+            "圆形",
+            "椭圆形",
+            "方形",
+            "不规则",
+            "旭日形",
+            "拱形"
+          ],
+          "values": {
+            "矩形": {
+              "value": "矩形",
+              "count": 1,
+              "lastUsedAt": "2026-04-30T09:48:37.223Z",
+              "sampleTitle": "全身穿衣落地镜子家用壁挂贴墙镜网红全身试衣镜出租房宿舍落地镜"
+            }
+          },
+          "firstSeenAt": "2026-04-30T09:47:54.120Z",
+          "lastSeenAt": "2026-04-30T09:49:33.221Z",
+          "timesSeen": 2
+        }
+      ]
+    },
+    "家居、厨房用品家居装饰台镜、穿衣镜其他台镜、穿衣镜": {
+      "categoryName": "家居、厨房用品 / 家居装饰 / 台镜、穿衣镜 / 其他（台镜、穿衣镜）",
+      "key": "家居、厨房用品家居装饰台镜、穿衣镜其他台镜、穿衣镜",
+      "firstSeenAt": "2026-04-30T09:50:50.479Z",
+      "lastSeenAt": "2026-04-30T09:52:01.035Z",
+      "timesSeen": 1,
+      "sampleTitles": [
+        "亚克力PS软镜子全身镜家用贴墙自粘镜卧室全身穿衣镜衣柜试衣镜子"
+      ],
+      "attributes": [
+        {
+          "name": "安装类型",
+          "controlType": "select",
+          "required": true,
+          "options": [
+            "壁挂架",
+            "梳妆台架",
+            "门架",
+            "桌面架",
+            "落地架"
+          ],
+          "values": {
+            "壁挂架": {
+              "value": "壁挂架",
+              "count": 1,
+              "lastUsedAt": "2026-04-30T09:51:55.228Z",
+              "sampleTitle": "亚克力PS软镜子全身镜家用贴墙自粘镜卧室全身穿衣镜衣柜试衣镜子"
+            }
+          },
+          "firstSeenAt": "2026-04-30T09:50:50.479Z",
+          "lastSeenAt": "2026-04-30T09:51:55.228Z",
+          "timesSeen": 1
+        },
+        {
+          "name": "表面推荐",
+          "controlType": "multi_select",
+          "required": true,
+          "options": [
+            "木材",
+            "塑料",
+            "玻璃",
+            "陶瓷",
+            "钢化玻璃"
+          ],
+          "values": {
+            "塑料": {
+              "value": "塑料",
+              "count": 1,
+              "lastUsedAt": "2026-04-30T09:51:49.461Z",
+              "sampleTitle": "亚克力PS软镜子全身镜家用贴墙自粘镜卧室全身穿衣镜衣柜试衣镜子"
+            }
+          },
+          "firstSeenAt": "2026-04-30T09:50:50.479Z",
+          "lastSeenAt": "2026-04-30T09:51:49.461Z",
+          "timesSeen": 1
+        },
+        {
+          "name": "反射层材料",
+          "controlType": "select",
+          "required": true,
+          "options": [
+            "银镜（镀银）",
+            "铝镜（镀铝）",
+            "铜镜"
+          ],
+          "values": {
+            "铝镜镀铝": {
+              "value": "铝镜（镀铝）",
+              "count": 1,
+              "lastUsedAt": "2026-04-30T09:51:46.991Z",
+              "sampleTitle": "亚克力PS软镜子全身镜家用贴墙自粘镜卧室全身穿衣镜衣柜试衣镜子"
+            }
+          },
+          "firstSeenAt": "2026-04-30T09:50:50.479Z",
+          "lastSeenAt": "2026-04-30T09:51:46.991Z",
+          "timesSeen": 1
+        },
+        {
+          "name": "方向",
+          "controlType": "select",
+          "required": true,
+          "options": [
+            "水平",
+            "垂直"
+          ],
+          "values": {
+            "垂直": {
+              "value": "垂直",
+              "count": 1,
+              "lastUsedAt": "2026-04-30T09:51:57.976Z",
+              "sampleTitle": "亚克力PS软镜子全身镜家用贴墙自粘镜卧室全身穿衣镜衣柜试衣镜子"
+            }
+          },
+          "firstSeenAt": "2026-04-30T09:50:50.479Z",
+          "lastSeenAt": "2026-04-30T09:51:57.976Z",
+          "timesSeen": 1
+        },
+        {
+          "name": "风格",
+          "controlType": "select",
+          "required": true,
+          "options": [],
+          "values": {},
+          "firstSeenAt": "2026-04-30T09:50:50.479Z",
+          "lastSeenAt": "2026-04-30T09:50:50.479Z",
+          "timesSeen": 1
+        },
+        {
+          "name": "供电方式",
+          "controlType": "select",
+          "required": true,
+          "options": [
+            "干电池供电",
+            "无需接电使用",
+            "插头供电",
+            "太阳能充电",
+            "USB供电",
+            "接室电/硬接线",
+            "USB充电（内置电池）",
+            "DC供电"
+          ],
+          "values": {
+            "无需接电使用": {
+              "value": "无需接电使用",
+              "count": 1,
+              "lastUsedAt": "2026-04-30T09:52:01.035Z",
+              "sampleTitle": "亚克力PS软镜子全身镜家用贴墙自粘镜卧室全身穿衣镜衣柜试衣镜子"
+            }
+          },
+          "firstSeenAt": "2026-04-30T09:50:50.479Z",
+          "lastSeenAt": "2026-04-30T09:52:01.035Z",
+          "timesSeen": 1
+        },
+        {
+          "name": "镜面基底材料",
+          "controlType": "select",
+          "required": true,
+          "options": [],
+          "values": {},
+          "firstSeenAt": "2026-04-30T09:50:50.479Z",
+          "lastSeenAt": "2026-04-30T09:50:50.479Z",
+          "timesSeen": 1
+        },
+        {
+          "name": "框架材质",
+          "controlType": "multi_select",
+          "required": true,
+          "options": [],
+          "values": {},
+          "firstSeenAt": "2026-04-30T09:50:50.479Z",
+          "lastSeenAt": "2026-04-30T09:50:50.479Z",
+          "timesSeen": 1
+        },
+        {
+          "name": "形状",
+          "controlType": "select",
+          "required": true,
+          "options": [
+            "矩形",
+            "圆形",
+            "椭圆形",
+            "方形",
+            "不规则",
+            "旭日形",
+            "拱形"
+          ],
+          "values": {
+            "矩形": {
+              "value": "矩形",
+              "count": 1,
+              "lastUsedAt": "2026-04-30T09:51:52.365Z",
+              "sampleTitle": "亚克力PS软镜子全身镜家用贴墙自粘镜卧室全身穿衣镜衣柜试衣镜子"
+            }
+          },
+          "firstSeenAt": "2026-04-30T09:50:50.479Z",
+          "lastSeenAt": "2026-04-30T09:51:52.365Z",
+          "timesSeen": 1
+        }
+      ]
+    },
+    "工业和科学零售店固定装置和设备零售展示架衣架其他衣架": {
+      "categoryName": "工业和科学 / 零售店固定装置和设备 / 零售展示架 / 衣架 / 其他（衣架）",
+      "key": "工业和科学零售店固定装置和设备零售展示架衣架其他衣架",
+      "firstSeenAt": "2026-04-30T09:53:07.523Z",
+      "lastSeenAt": "2026-04-30T09:53:27.690Z",
+      "timesSeen": 1,
+      "sampleTitles": [
+        "折叠可移动晾衣架可伸缩不占空间落地室内外家用免安装晒被晾衣架"
+      ],
+      "attributes": [
+        {
+          "name": "材料",
+          "controlType": "select",
+          "required": true,
+          "options": [],
+          "values": {},
+          "firstSeenAt": "2026-04-30T09:53:07.523Z",
+          "lastSeenAt": "2026-04-30T09:53:07.523Z",
+          "timesSeen": 1
+        },
+        {
+          "name": "产地",
+          "controlType": "select",
+          "required": true,
+          "options": [],
+          "values": {},
+          "firstSeenAt": "2026-04-30T09:53:07.523Z",
+          "lastSeenAt": "2026-04-30T09:53:07.523Z",
+          "timesSeen": 1
+        },
+        {
+          "name": "完成类型",
+          "controlType": "select",
+          "required": true,
+          "options": [
+            "抛光",
+            "拉丝",
+            "油擦",
+            "未完成",
+            "粉末涂层",
+            "烤漆",
+            "彩绘"
+          ],
+          "values": {
+            "粉末涂层": {
+              "value": "粉末涂层",
+              "count": 1,
+              "lastUsedAt": "2026-04-30T09:53:27.690Z",
+              "sampleTitle": "折叠可移动晾衣架可伸缩不占空间落地室内外家用免安装晒被晾衣架"
+            }
+          },
+          "firstSeenAt": "2026-04-30T09:53:07.523Z",
+          "lastSeenAt": "2026-04-30T09:53:27.690Z",
+          "timesSeen": 1
+        }
+      ]
+    },
+    "家居、厨房用品收纳用品洗晒熨晾晒架": {
+      "categoryName": "家居、厨房用品 / 收纳用品 / 洗晒熨 / 晾晒架",
+      "key": "家居、厨房用品收纳用品洗晒熨晾晒架",
+      "firstSeenAt": "2026-04-30T09:55:52.927Z",
+      "lastSeenAt": "2026-04-30T09:58:48.268Z",
+      "timesSeen": 2,
+      "sampleTitles": [
+        "室内物干しスタンド折りたたみ式伸縮可能布団干しスタンドステンレス製大型頑丈省スペース室内干しランドリーラック洗濯物干し台多機能高さ調整バルコニー用寝具干し洗濯ハンガー収納ラック耐荷重脱衣所コンパクト組み立て簡単大判布団しっかり乾燥移動容易キャスター付きアパート一人暮らし",
+        "家用多功能晾衣架3秒折叠晾晒衣架可伸缩落地晾衣架晒被子专用"
+      ],
+      "attributes": [
+        {
+          "name": "安装类型",
+          "controlType": "select",
+          "required": true,
+          "options": [
+            "壁挂式",
+            "独立式",
+            "门挂式",
+            "立杆式",
+            "其他安装类型"
+          ],
+          "values": {
+            "独立式": {
+              "value": "独立式",
+              "count": 1,
+              "lastUsedAt": "2026-04-30T09:58:48.268Z",
+              "sampleTitle": "室内物干しスタンド折りたたみ式伸縮可能布団干しスタンドステンレス製大型頑丈省スペース室内干しランドリーラック洗濯物干し台多機能高さ調整バルコニー用寝具干し洗濯ハンガー収納ラック耐荷重脱衣所コンパクト組み立て簡単大判布団しっかり乾燥移動容易キャスター付きアパート一人暮らし"
+            }
+          },
+          "firstSeenAt": "2026-04-30T09:55:52.927Z",
+          "lastSeenAt": "2026-04-30T09:58:48.268Z",
+          "timesSeen": 2
+        },
+        {
+          "name": "材料",
+          "controlType": "select",
+          "required": true,
+          "options": [],
+          "values": {},
+          "firstSeenAt": "2026-04-30T09:55:52.927Z",
+          "lastSeenAt": "2026-04-30T09:58:32.024Z",
+          "timesSeen": 2
+        },
+        {
+          "name": "产地",
+          "controlType": "select",
+          "required": true,
+          "options": [],
+          "values": {},
+          "firstSeenAt": "2026-04-30T09:55:52.927Z",
+          "lastSeenAt": "2026-04-30T09:58:32.024Z",
+          "timesSeen": 2
+        }
+      ]
+    }
+  }
+}

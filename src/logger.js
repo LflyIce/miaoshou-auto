@@ -1,6 +1,7 @@
 const fs = require('fs');
+const path = require('path');
 const ExcelJS = require('exceljs');
-const { ensureProjectDirs, resolveRoot } = require('./utils');
+const { ensureProjectDirs, nowForFile, resolveRoot } = require('./utils');
 
 const LOG_COLUMNS = [
   'time',
@@ -54,6 +55,11 @@ async function readExistingRows(filePath, columns) {
   }
 }
 
+function makeUnlockedFilePath(filePath) {
+  const parsed = path.parse(filePath);
+  return path.join(parsed.dir, `${parsed.name}_${nowForFile()}${parsed.ext}`);
+}
+
 async function writeWorkbook(filePath, columns, rows, sheetName) {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet(sheetName);
@@ -71,7 +77,16 @@ async function writeWorkbook(filePath, columns, rows, sheetName) {
   sheet.eachRow((row) => {
     row.alignment = { vertical: 'top', wrapText: true };
   });
-  await workbook.xlsx.writeFile(filePath);
+  try {
+    await workbook.xlsx.writeFile(filePath);
+    return filePath;
+  } catch (error) {
+    if (!['EBUSY', 'EPERM'].includes(error.code)) throw error;
+    const fallbackPath = makeUnlockedFilePath(filePath);
+    console.warn(`[日志] ${filePath} 正在被占用，改写入 ${fallbackPath}`);
+    await workbook.xlsx.writeFile(fallbackPath);
+    return fallbackPath;
+  }
 }
 
 class RunLogger {
@@ -111,8 +126,8 @@ class RunLogger {
 
   async save() {
     await ensureProjectDirs();
-    await writeWorkbook(this.logFile, LOG_COLUMNS, this.logs, 'logs');
-    await writeWorkbook(this.failedFile, FAILED_COLUMNS, this.failures, 'failed');
+    this.logFile = await writeWorkbook(this.logFile, LOG_COLUMNS, this.logs, 'logs');
+    this.failedFile = await writeWorkbook(this.failedFile, FAILED_COLUMNS, this.failures, 'failed');
     console.log(`[日志] 已写入 ${this.logFile}`);
     console.log(`[日志] 已写入 ${this.failedFile}`);
   }

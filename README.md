@@ -41,14 +41,14 @@ ZAI_API_KEY=your-zhipu-api-key
 {
   "ai": {
     "baseURL": "https://open.bigmodel.cn/api/paas/v4/",
-    "model": "glm-4.6v-flash",
+    "model": "GLM-5V-Turbo",
     "apiKeyEnv": "ZAI_API_KEY",
     "sendImages": true
   }
 }
 ```
 
-`glm-4.6v-flash` 支持图片输入，项目会把商品标题、属性名、页面真实选项和商品主图一起发送给模型。如果你临时改用纯文本模型，可以把 `sendImages` 改成 `false`。
+`GLM-5V-Turbo` 支持图片输入，项目会把商品标题、属性名、页面真实选项和商品主图一起发送给模型。如果你临时改用纯文本模型，可以把 `sendImages` 改成 `false`。
 
 ## 3. 登录并保存状态
 
@@ -64,13 +64,15 @@ storage/miaoshou_state.json
 
 工具不会保存你的妙手账号密码。
 
-## 4. 填写当前商品编辑页
+## 4. 批量填写商品编辑页
 
 ```bash
 npm run fill
 ```
 
 默认会打开 `config/config.json` 里的 `startUrl`。如果 `productEditUrl` 为空，脚本会等待你手动打开商品编辑页，然后按回车。程序会自动切换到“类别&属性”模块，再开始扫描和填写。
+
+开启 `saveAfterFill=true` 后，程序会按当前编辑窗口持续处理商品：当前商品填写完成后点击“保存修改”，识别保存成功反馈后自动进入下一个商品；如果保存失败，会读取页面弹窗/提示里的失败信息，关闭提示后重新扫描当前商品并尝试更正，再保存一次。二次保存仍失败时，会记录失败原因和截图，然后跳过该商品继续下一个。
 
 如果你想直接打开某个商品编辑页，可以配置：
 
@@ -79,7 +81,11 @@ npm run fill
   "productEditUrl": "https://erp.91miaoshou.com/你的商品编辑页地址",
   "behavior": {
     "waitForManualPage": false,
-    "saveAfterFill": false
+    "saveAfterFill": true
+  },
+  "batch": {
+    "maxProducts": 0,
+    "saveRetryLimit": 1
   }
 }
 ```
@@ -94,7 +100,47 @@ npm run fill
 }
 ```
 
-默认配置为 `saveAfterFill=true`，成功填写至少一个字段后会点击“保存修改”。如果没有成功填写字段，不会点击保存。
+默认配置为 `saveAfterFill=true`，成功填写至少一个字段后会点击“保存修改”。如果没有成功填写字段，不会点击保存，也会跳过当前商品。
+
+批量相关配置：
+
+```json
+{
+  "batch": {
+    "maxProducts": 0,
+    "saveRetryLimit": 1,
+    "saveFeedbackTimeoutMs": 6000,
+    "nextProductWaitMs": 4000,
+    "saveButtonSelectors": [],
+    "nextProductSelectors": []
+  }
+}
+```
+
+`maxProducts=0` 表示一直处理到找不到下一个商品；如果妙手页面的“保存”或“下一个商品”按钮比较特殊，可以把真实 CSS 选择器放进 `saveButtonSelectors` 或 `nextProductSelectors`。
+
+### 类目属性知识库
+
+程序会按产品类目维护本地知识库，默认文件为：
+
+```text
+storage/category_attribute_knowledge.json
+```
+
+当某个类目第一次出现时，会记录本次扫描到的必填属性、控件类型和页面选项。后续再次遇到同类目时，会把历史属性和值作为 AI 判断的参考；最终填写仍然会经过页面真实选项匹配，不会直接填入页面不存在的值。
+
+可在 `config/config.json` 调整：
+
+```json
+{
+  "knowledgeBase": {
+    "enabled": true,
+    "path": "storage/category_attribute_knowledge.json",
+    "maxSamplesPerAttribute": 20,
+    "maxTitlesPerCategory": 5
+  }
+}
+```
 
 ## 5. 日志输出
 
