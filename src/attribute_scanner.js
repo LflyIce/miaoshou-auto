@@ -267,12 +267,15 @@ async function scanRequiredAttributes(page) {
     }
 
     function hasEditableControl(row) {
+      if (isMaterialRatioTable(row)) return true;
       return Boolean(row.querySelector(
         'textarea, input:not([type="hidden"]), select, .el-select, .ant-select, [role="combobox"], [contenteditable="true"], .el-cascader, .ant-cascader, .el-date-editor, .ant-picker'
       ));
     }
 
     function detectControlType(row) {
+      if (isMaterialRatioTable(row)) return 'material_ratio_table';
+
       const multi = row.querySelector('.ant-select-multiple, .el-select__tags, [aria-multiselectable="true"], [class*="multiple"], [class*="tags"]');
       if (multi) return 'multi_select';
 
@@ -284,11 +287,27 @@ async function scanRequiredAttributes(page) {
       return 'unknown';
     }
 
+    function isMaterialRatioTable(row) {
+      const text = textOf(row);
+      const hasTable = Boolean(row.querySelector('.el-table, .jx-pro-table, table'));
+      const hasAddButton = Array.from(row.querySelectorAll('button, .el-button'))
+        .some((button) => /添加|新增|add/i.test(textOf(button)));
+      const mentionsMaterial = /材料|材质/.test(text);
+      const mentionsRatio = /成分比例|比例|100%/.test(text);
+      return hasTable && hasAddButton && mentionsMaterial && mentionsRatio;
+    }
+
     function isPlaceholderText(value) {
       return !value || /请选择|选择|请输入|输入|Select|Input|Please select/i.test(value);
     }
 
     function detectAlreadyFilled(row, controlType) {
+      if (controlType === 'material_ratio_table') {
+        const bodyRows = Array.from(row.querySelectorAll('tbody tr'))
+          .filter((tr) => visible(tr) && textOf(tr) && !/暂无数据|No Data/i.test(textOf(tr)));
+        return bodyRows.length > 0;
+      }
+
       if (controlType === 'input') {
         const input = row.querySelector('textarea, input:not([type="hidden"])');
         return Boolean(input && String(input.value || '').trim());

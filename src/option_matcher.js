@@ -162,7 +162,7 @@ function chooseFallback(attrName, options, fallbackRules) {
   const entries = Object.entries(byAttribute)
     .sort((a, b) => String(b[0]).length - String(a[0]).length);
   for (const [name, values] of entries) {
-    if (String(attrName || '').includes(name) || name.includes(String(attrName || ''))) {
+    if (matchesFallbackAttribute(attrName, name)) {
       const matched = matchFallbackValue(values, options);
       if (matched) {
         return {
@@ -190,12 +190,20 @@ function chooseFallbackText(attrName, fallbackRules) {
   const entries = Object.entries(byAttribute)
     .sort((a, b) => String(b[0]).length - String(a[0]).length);
   for (const [name, values] of entries) {
-    if (String(attrName || '').includes(name) || name.includes(String(attrName || ''))) {
+    if (matchesFallbackAttribute(attrName, name)) {
       const value = (values || []).map((item) => String(item || '').trim()).find(Boolean);
       if (value) return value;
     }
   }
   return (fallbackRules.global || []).map((item) => String(item || '').trim()).find(Boolean) || '';
+}
+
+function matchesFallbackAttribute(attrName, ruleName) {
+  const attr = String(attrName || '').trim();
+  const rule = String(ruleName || '').trim();
+  if (!attr || !rule) return false;
+  if (attr === rule) return true;
+  return attr.includes(rule);
 }
 
 function chooseNeutralOption(options) {

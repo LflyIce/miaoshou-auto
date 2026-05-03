@@ -68,6 +68,14 @@ async function main() {
       console.log(`\n====== 开始处理第 ${productIndex} 个商品 ======`);
       const result = await processCurrentProduct(page, config, logger, productSummary, { productIndex, categoryKnowledge });
 
+      if (result.skipped) {
+        summary.products += 1;
+        summary.skippedProducts += 1;
+        await logger.save();
+        await categoryKnowledge.save();
+        continue;
+      }
+
       if (config.behavior.saveAfterFill) {
         const saveResult = await saveCurrentProductWithRetry(page, config, logger, result.productInfo, productSummary, productIndex, categoryKnowledge);
         if (saveResult.success) {
@@ -197,12 +205,23 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
       confidence: 0,
       screenshot,
       reason: navigationResult.success
-        ? '已自动定位模块，但未在“类别&属性”区域找到带星号且为空值的属性'
+        ? '已自动定位模块，但未在”类别&属性”区域找到带星号且为空值的属性'
         : navigationResult.reason,
       error: navigationResult.success
-        ? '已自动定位模块，但未在“类别&属性”区域找到带星号且为空值的属性'
+        ? '已自动定位模块，但未在”类别&属性”区域找到带星号且为空值的属性'
         : navigationResult.reason
     }));
+  }
+
+  const skipAttr = attributes.find((attr) => /尺码|サイズ/i.test(attr.name) && !attr.alreadyFilled && !attr.options.length);
+  if (skipAttr) {
+    console.warn(`[跳过] 字段【${skipAttr.name}】无可选选项，跳过当前商品。`);
+    logger.log(baseRecord(productInfo, skipAttr, {
+      status: 'skipped',
+      reason: `字段【${skipAttr.name}】无可选选项，跳过商品`
+    }));
+    summary.skipped += 1;
+    return { productInfo, navigationResult, skipped: true };
   }
 
   const todoAttributes = [];
@@ -682,10 +701,27 @@ async function closeFeedbackOverlays(page) {
 async function goToNextProduct(page, config, productInfo, productIndex) {
   console.log(`[下一商品] 第 ${productIndex} 个商品处理结束，尝试进入下一个商品...`);
 
+  const beforeUrl = page.url();
+  const beforeTitle = await page.evaluate(() => {
+    const active = document.querySelector('.goods-item.active, .goods-item.selected, .goods-item.current');
+    const titleNode = active && active.querySelector('.item-title, [title]');
+    return titleNode ? (titleNode.getAttribute('title') || titleNode.textContent || '').trim() : '';
+  }).catch(() => '');
+
   const clickedGoodsList = await clickNextInGoodsList(page);
   if (clickedGoodsList) {
     await confirmLeaveIfPrompted(page);
-    return { success: true, method: 'goods_list', title: clickedGoodsList.title || '' };
+    const goodsUrlChanged = page.url() !== beforeUrl;
+    const goodsTitleChanged = await page.evaluate((oldTitle) => {
+      const active = document.querySelector('.goods-item.active, .goods-item.selected, .goods-item.current');
+      const titleNode = active && active.querySelector('.item-title, [title]');
+      const newTitle = titleNode ? (titleNode.getAttribute('title') || titleNode.textContent || '').trim() : '';
+      return newTitle && newTitle !== oldTitle;
+    }, beforeTitle).catch(() => false);
+    if (goodsUrlChanged || goodsTitleChanged) {
+      return { success: true, method: 'goods_list', title: clickedGoodsList.title || '' };
+    }
+    console.warn('[下一商品] 商品列表点击后页面和标题均未变化，视为停留在当前商品');
   }
 
   const selectors = [
@@ -718,13 +754,23 @@ async function goToNextProduct(page, config, productInfo, productIndex) {
       continue;
     }
     await confirmLeaveIfPrompted(page);
+    const urlChanged = page.url() !== beforeUrl;
+    if (!urlChanged) {
+      console.warn(`[下一商品] 点击 ${selector} 后页面未跳转，可能不是正确的下一商品按钮`);
+      continue;
+    }
     return { success: true, method: 'selector', selector };
   }
 
   const clickedLeftList = await clickNextInLeftProductList(page);
   if (clickedLeftList) {
     await confirmLeaveIfPrompted(page);
-    return { success: true, method: 'left_list' };
+    const leftUrlChanged = page.url() !== beforeUrl;
+    if (!leftUrlChanged) {
+      console.warn('[下一商品] 左侧列表点击后页面未跳转，视为无下一商品');
+    } else {
+      return { success: true, method: 'left_list' };
+    }
   }
 
   return {

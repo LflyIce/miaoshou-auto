@@ -144,26 +144,28 @@ async function rewriteProductTitles(productInfo) {
   const payload = {
     sourceTitle: productInfo.title || '',
     images: productInfo.images || [],
-    requirements: [
-      'First identify the source title language',
-      'If the source title is Japanese translate it into Chinese first',
-      'Use Chinese as the working language to expand and rewrite the product title based on Japanese marketplace search habits and search keywords',
-      'The expanded Chinese working title should include product core terms usage scenarios material structure selling points and common synonym search terms',
-      'Translate the expanded Chinese working title into Japanese for japaneseTitle',
-      'Translate the expanded Chinese working title into English for englishTitle',
-      'japaneseTitle must be 150 to 170 characters',
-      'englishTitle must be 150 to 170 characters',
-      'Do not include any punctuation in either final title',
-      'Do not include line breaks emoji brand names or unsupported claims'
+    workflow: [
+      '步骤1 分析原始标题提取核心关键词属性词用途及适用人群',
+      '步骤2 结合日本电商搜索热词按关键词权重排序核心词前置长尾词后置扩写标题语序符合日本搜索习惯',
+      '步骤3 严格控制字符数将日文标题删减或补充至150到175字符区间并移除所有标点符号和空格',
+      '步骤4 将优化好的日文标题翻译成地道符合跨境电商通用的英文标题',
+      '步骤5 按指定格式输出最终结果'
+    ],
+    constraints: [
+      'japaneseTitle必须严格控制在150到175个字符之间',
+      'japaneseTitle严禁出现任何标点符号包括逗号句号空格括号等视为纯字符串',
+      'englishTitle为对应的地道英文翻译',
+      '不得凭空捏造不存在的功能必须基于原产品核心属性',
+      '使用同义词替换重复词汇增加搜索覆盖面'
     ],
     outputFormat: {
       expandedChineseTitle: '用于扩写的中文标题',
-      japaneseTitle: '日语标题',
+      japaneseTitle: '无标点150到175字符的纯字符串日文标题',
       englishTitle: 'English title'
     }
   };
 
-  const userText = `Generate optimized marketplace titles using this exact workflow and return JSON only.\n${JSON.stringify(payload, null, 2)}`;
+  const userText = `请按照workflow和constraints生成优化标题只返回JSON。\n${JSON.stringify(payload, null, 2)}`;
   const requestImages = config.ai.sendImages === false ? [] : (productInfo.images || []);
   const messagesWithImages = [
     { role: 'system', content: templates.titleRewriteSystem || defaultTitleRewritePrompt() },
@@ -194,7 +196,8 @@ async function postChatCompletion(config, apiKey, messages) {
   const baseBody = {
     model: config.ai.model,
     messages,
-    temperature: 0.1
+    temperature: 0.1,
+    thinking: { type: 'disabled' }
   };
 
   try {
@@ -212,15 +215,26 @@ async function postChatCompletion(config, apiKey, messages) {
 
 function normalizeTitles(parsed) {
   return {
-    japaneseTitle: sanitizeTitle(parsed.japaneseTitle || parsed.productTitle || parsed.title || ''),
-    englishTitle: sanitizeTitle(parsed.englishTitle || parsed.enTitle || parsed.english || '')
+    japaneseTitle: sanitizeJapaneseTitle(parsed.japaneseTitle || parsed.japanesetitle || parsed['日文标题'] || parsed.productTitle || parsed.title || ''),
+    englishTitle: sanitizeEnglishTitle(parsed.englishTitle || parsed.englishtitle || parsed['英文标题'] || parsed.enTitle || parsed.english || '')
   };
 }
 
-function sanitizeTitle(title) {
+function sanitizeJapaneseTitle(title) {
+  const cleaned = String(title || "")
+    .replace(/[!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~\s]/g, "")
+    .replace(/[“”‘’，。！？、；：￥（）【】《》—…·\s]/g, "");
+  const chars = Array.from(cleaned);
+  if (chars.length < 150) {
+    console.warn("[标题] 日文标题仅 " + chars.length + " 字符，不足 150");
+  }
+  return chars.slice(0, 175).join("");
+}
+
+function sanitizeEnglishTitle(title) {
   const cleaned = String(title || '')
     .replace(/[!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]/g, ' ')
-    .replace(/[，。！？、；：￥（）【】《》“”‘’—…·]/g, ' ')
+    .replace(/[""'']|，|。|！|？|、|；|：|￥|（|）|【|】|《|》|—|…|·/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
   return Array.from(cleaned).slice(0, 170).join('').trim();
@@ -325,7 +339,30 @@ function defaultSecondChoicePrompt() {
 }
 
 function defaultTitleRewritePrompt() {
-  return 'You are a Japanese cross border ecommerce title optimization assistant. Always use this workflow source title language detection then Chinese working rewrite then Japanese and English translation. If the source title is already Japanese translate it into Chinese first then expand and rewrite in Chinese according to Japanese marketplace search habits and keywords then translate into Japanese and English. Final japaneseTitle and englishTitle must be 150 to 170 characters and contain no punctuation no line breaks no emoji no invented brand names and no unsupported claims. Return strict JSON only with expandedChineseTitle japaneseTitle and englishTitle.';
+  return [
+    '你是一位跨境电商日本市场SEO优化专家，专精于日本电商市场（亚马逊日本站、乐天、雅虎购物）的产品Listing优化。',
+    '你擅长根据日本消费者的搜索心理和算法机制编写高曝光标题，精通日语SEO关键词挖掘、跨语言本地化翻译、电商搜索算法优化。',
+    '',
+    '核心原则：',
+    '1. 搜索优先：标题内容必须以提升搜索排名（SEO）为核心目标，优先植入高流量热词。',
+    '2. 原意保留：扩写必须基于原产品的核心功能和属性，不得凭空捏造不存在的功能。',
+    '3. 格式规范：严格遵守无标点符号的要求，日文标题仅使用汉字、假名、英文字母及数字，纯字符串无空格。',
+    '4. 词汇丰富：使用同义词替换重复词汇，增加标题覆盖的搜索词面。',
+    '5. 逻辑连贯：即使没有标点，通过词语组合也要让标题在阅读时逻辑清晰，符合日语语法结构。',
+    '',
+    '执行流程：',
+    '步骤1：分析输入的产品原始标题，提取核心关键词、属性词、用途及适用人群。',
+    '步骤2：结合日本电商搜索热词，对标题进行扩写。按关键词权重排序（核心词前置，长尾词后置），调整语序以符合日本搜索习惯。',
+    '步骤3：严格控制字符数，将扩写后的日文标题删减或补充至150-175字符区间，并移除所有标点符号和空格。',
+    '步骤4：将优化好的日文标题翻译成地道、符合跨境电商通用的英文标题。',
+    '步骤5：按JSON格式输出最终结果。',
+    '',
+    '硬性要求：',
+    '- japaneseTitle必须是150到175个字符的纯字符串，严禁任何标点符号和空格',
+    '- 如果源标题是日语先翻译成中文理解再扩写',
+    '- 不包含换行符emoji品牌名或虚假宣传',
+    '- 只返回严格JSON，包含expandedChineseTitle、japaneseTitle、englishTitle三个字段'
+  ].join('\n');
 }
 
 module.exports = {

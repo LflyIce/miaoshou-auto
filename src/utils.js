@@ -60,7 +60,10 @@ function loadConfig() {
       saveAfterFill: false,
       screenshotOnError: true,
       skipAlreadyFilled: true,
-      waitForManualPage: true
+      waitForManualPage: true,
+      pauseBeforeSave: false,
+      pauseOnSaveError: true,
+      pauseAfterEachProduct: false
     },
     knowledgeBase: {
       enabled: true,

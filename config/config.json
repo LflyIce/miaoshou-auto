@@ -12,9 +12,9 @@
   },
   "ai": {
     "baseURL": "https://open.bigmodel.cn/api/paas/v4/",
-    "model": "GLM-5V-Turbo",
+    "model": "glm-5.1",
     "apiKeyEnv": "ZAI_API_KEY",
-    "sendImages": true
+    "sendImages": false
   },
   "thresholds": {
     "autoSelectScore": 0.85,
@@ -31,7 +31,10 @@
     "saveAfterFill": true,
     "screenshotOnError": true,
     "skipAlreadyFilled": true,
-    "waitForManualPage": true
+    "waitForManualPage": true,
+    "pauseBeforeSave": false,
+    "pauseOnSaveError": true,
+    "pauseAfterEachProduct": false
   },
   "knowledgeBase": {
     "enabled": true,
