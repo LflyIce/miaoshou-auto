@@ -13,6 +13,7 @@ const { readProductInfo, readProductLink, readTotalProductCount, readCurrentProd
 const { CategoryKnowledge, readCurrentCategory } = require('./category_knowledge');
 const { ProductExporter } = require('./product_export');
 const { readSkuTableData } = require('./sku_reader');
+const { fillSkuProperties } = require('./sku_filler');
 const {
   ensureProjectDirs,
   getBrowserContextOptions,
@@ -200,6 +201,18 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
     console.warn(`[SKU] 预读取失败: ${e.message}`);
   }
   const earlyProductLink = await readProductLink(page);
+
+  // 在切换模块前编辑规格（规格一设标题为型号保留3项，规格二保留2项）
+  try {
+    const skuResult = await fillSkuProperties(page);
+    if (skuResult.status === 'success' && skuResult.changed) {
+      console.log(`[规格] 编辑完成: 规格一${skuResult.specOneTitleChanged ? '标题已改' : ''}删除${skuResult.specOneTrimmed}项, 规格二删除${skuResult.specTwoTrimmed}项`);
+    } else if (skuResult.status === 'skipped') {
+      console.log(`[规格] ${skuResult.reason}`);
+    }
+  } catch (e) {
+    console.warn(`[规格] 编辑失败: ${e.message}`);
+  }
 
   const attributesModule = config.modules && config.modules.attributes
     ? config.modules.attributes
