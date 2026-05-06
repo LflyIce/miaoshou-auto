@@ -375,6 +375,65 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
     }
   }
 
+  // 填写完属性后再次扫描，捕捉因选择某个属性后新出现的关联属性
+  const newAttributes = await scanRequiredAttributes(page, { errorFields: [] });
+  const alreadyHandled = new Set(todoAttributes.map((a) => a.name));
+  const cascadedAttributes = newAttributes.filter(
+    (attr) => !alreadyHandled.has(attr.name) && !attr.alreadyFilled
+  );
+  if (cascadedAttributes.length) {
+    console.log(`[关联属性] 填写后检测到 ${cascadedAttributes.length} 个新出现的必填属性`);
+    for (const attr of cascadedAttributes) {
+      console.log(`  + ${attr.name} | ${attr.controlType} | 选项 ${attr.options.length}`);
+    }
+    const cascadedResult = cascadedAttributes.length
+      ? await analyzeAttributes(productInfo, cascadedAttributes, knowledgeReference)
+      : { attributes: [] };
+    const cascadedAiByName = new Map((cascadedResult.attributes || []).map((item) => [item.name, item]));
+    for (const attr of cascadedAttributes) {
+      const ai = cascadedAiByName.get(attr.name) || { value: null, confidence: 0, reason: 'AI 未返回该字段', need_manual: true };
+      try {
+        const finalDecision = await decideFinalValue(attr, ai, productInfo);
+        if (!finalDecision.value || finalDecision.method === 'manual_required') {
+          summary.failed += 1;
+          logger.fail(baseRecord(productInfo, attr, {
+            aiValue: ai.value,
+            finalValue: finalDecision.value,
+            matchMethod: finalDecision.method,
+            confidence: finalDecision.confidence,
+            reason: finalDecision.reason,
+            error: finalDecision.reason
+          }));
+          continue;
+        }
+        await fillAttribute(page, attr, finalDecision.value);
+        summary.success += 1;
+        summary.requiredCount += 1;
+        logger.log(baseRecord(productInfo, attr, {
+          aiValue: ai.value,
+          finalValue: finalDecision.value,
+          matchMethod: finalDecision.method,
+          confidence: finalDecision.confidence,
+          status: 'success',
+          reason: `${ai.reason || ''} ${finalDecision.reason || ''}`.trim()
+        }));
+      } catch (error) {
+        summary.failed += 1;
+        summary.requiredCount += 1;
+        const screenshot = await maybeScreenshot(page, config, attr.name);
+        logger.fail(baseRecord(productInfo, attr, {
+          aiValue: ai.value,
+          finalValue: '',
+          matchMethod: 'failed',
+          confidence: ai.confidence || 0,
+          reason: ai.reason || '',
+          screenshot,
+          error: error.message
+        }));
+      }
+    }
+  }
+
   // 在页面仍可用时立即导出产品数据（使用提前读取的SKU数据）
   const exporter = options.exporter;
   console.log(`[导出-DEBUG] exporter=${!!exporter}, japaneseTitle=${!!japaneseTitle}, productInfo=${!!productInfo}`);
@@ -508,7 +567,7 @@ async function decideFinalValue(attr, ai, productInfo) {
 function neutralInputValue(attrName) {
   const text = String(attrName || '');
   if (/数量|数目|个数|件数/i.test(text)) return '1';
-  if (/重量|长|宽|高|尺寸|长度|宽度|高度/i.test(text)) return '0';
+  if (/重量|克重|g\/|g㎡|密度|含量|比例|浓度|pH|PH|长|宽|高|尺寸|长度|宽度|高度/i.test(text)) return '40';
   return '不适用';
 }
 
@@ -1143,13 +1202,21 @@ function asArray(value) {
 function parseErrorFields(errorMessage) {
   const text = String(errorMessage || '');
   const fields = [];
+  // 匹配【字段名】模式
+  const bracketPattern = /【([^】]+)】/g;
+  let match;
+  while ((match = bracketPattern.exec(text)) !== null) {
+    const field = match[1].trim();
+    if (field && !fields.includes(field)) fields.push(field);
+  }
+  // 兜底：匹配字段名+错误描述模式
   const patterns = [
     /([^|，。、\s]{2,15})(?:不能为空|不能没|必填|请选择|未填写|有误)/g,
   ];
   for (const pattern of patterns) {
-    let match;
-    while ((match = pattern.exec(text)) !== null) {
-      const field = match[1].trim();
+    let m;
+    while ((m = pattern.exec(text)) !== null) {
+      const field = m[1].trim();
       if (field && !fields.includes(field)) fields.push(field);
     }
   }

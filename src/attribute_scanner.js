@@ -284,6 +284,10 @@ async function scanRequiredAttributes(page, options = {}) {
     function detectControlType(row) {
       if (isMaterialRatioTable(row)) return 'material_ratio_table';
 
+      // 输入框 + 单位选择器（如 "平方克重（g/㎡）"）：主交互是输入数字，单位选择器可忽略
+      const unitSelect = row.querySelector('.el-select.unit, .ant-select.unit, [class*="unit"][class*="select"]');
+      if (unitSelect && row.querySelector('input:not([type="hidden"])')) return 'input';
+
       const multi = row.querySelector('.ant-select-multiple, .el-select__tags, [aria-multiselectable="true"], [class*="multiple"], [class*="tags"]');
       if (multi) return 'multi_select';
 
