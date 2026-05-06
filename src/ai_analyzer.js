@@ -141,22 +141,59 @@ async function rewriteProductTitles(productInfo) {
     throw new Error(`缺少环境变量 ${config.ai.apiKeyEnv || 'ZAI_API_KEY'}`);
   }
 
-  const payload = {
+  const requestImages = config.ai.sendImages === false ? [] : (productInfo.images || []);
+  const systemPrompt = templates.titleRewriteSystem || defaultTitleRewritePrompt();
+
+  // 第一步：分析原始标题并扩写为丰富的中文/日文关键词描述
+  const expandPayload = {
     sourceTitle: productInfo.title || '',
-    images: productInfo.images || [],
-    workflow: [
-      '步骤1 分析原始标题提取核心关键词属性词用途及适用人群',
-      '步骤2 结合日本电商搜索热词按关键词权重排序核心词前置长尾词后置扩写标题语序符合日本搜索习惯',
-      '步骤3 严格控制字符数将日文标题删减或补充至150到175字符区间并移除所有标点符号和空格',
-      '步骤4 将优化好的日文标题翻译成地道符合跨境电商通用的英文标题',
-      '步骤5 按指定格式输出最终结果'
+    task: '分析产品标题，提取核心关键词并扩写为丰富的描述性文本，用于后续生成电商标题',
+    requirements: [
+      '提取产品的核心功能、材质、适用场景、目标人群、使用效果、产品卖点',
+      '补充同义词、近义词、相关搜索热词以增加覆盖面',
+      '用中文和日文分别列出所有扩写关键词和描述短语',
+      '不得凭空捏造不存在的功能，必须基于原产品核心属性',
+      '尽量多列关键词，宁多勿少'
     ],
-    constraints: [
+    outputFormat: {
+      coreKeywords: '核心关键词列表',
+      expandedChineseText: '用中文扩写的丰富描述文本（至少200字）',
+      expandedJapaneseKeywords: '日文关键词和短语的拼接（至少200字符）'
+    }
+  };
+
+  const expandText = `请分析产品标题并扩写关键词，只返回JSON。\n${JSON.stringify(expandPayload, null, 2)}`;
+  const expandMessages = [
+    { role: 'system', content: '你是一位跨境电商日本市场SEO优化专家，专精于日本电商产品关键词挖掘和扩写。' },
+    { role: 'user', content: buildVisionContent(expandText, requestImages) }
+  ];
+
+  let expandedContext = '';
+  try {
+    const expandContent = await postChatCompletion(config, apiKey, expandMessages);
+    const expandResult = extractJSON(expandContent);
+    expandedContext = [
+      expandResult.expandedChineseText || '',
+      expandResult.expandedJapaneseKeywords || '',
+      (expandResult.coreKeywords || []).join(' ')
+    ].filter(Boolean).join('\n');
+    console.log(`[标题] 第一步扩写完成，扩写内容 ${expandedContext.length} 字符`);
+  } catch (error) {
+    console.warn(`[标题] 第一步扩写失败: ${error.message}，直接用原始标题`);
+  }
+
+  // 第二步：基于扩写结果生成最终的 150-175 字符日文标题
+  const generatePayload = {
+    sourceTitle: productInfo.title || '',
+    expandedContext: expandedContext || '（无扩写内容，请基于源标题自行扩写）',
+    task: '基于上面的原始标题和扩写关键词，生成符合日本电商SEO的日文标题和英文标题',
+    rules: [
       'japaneseTitle必须严格控制在150到175个字符之间',
       'japaneseTitle严禁出现任何标点符号包括逗号句号空格括号等视为纯字符串',
+      '将扩写关键词按权重排序核心词前置长尾词后置语序符合日本搜索习惯',
       'englishTitle为对应的地道英文翻译',
-      '不得凭空捏造不存在的功能必须基于原产品核心属性',
-      '使用同义词替换重复词汇增加搜索覆盖面'
+      '使用同义词替换重复词汇增加搜索覆盖面',
+      '如果关键词素材不够150字符，继续补充适用场景目标人群材质特征等描述'
     ],
     outputFormat: {
       expandedChineseTitle: '用于扩写的中文标题',
@@ -165,23 +202,31 @@ async function rewriteProductTitles(productInfo) {
     }
   };
 
-  const userText = `请按照workflow和constraints生成优化标题只返回JSON。\n${JSON.stringify(payload, null, 2)}`;
-  const requestImages = config.ai.sendImages === false ? [] : (productInfo.images || []);
-  const messagesWithImages = [
-    { role: 'system', content: templates.titleRewriteSystem || defaultTitleRewritePrompt() },
-    { role: 'user', content: buildVisionContent(userText, requestImages) }
+  const generateText = `请基于扩写素材生成最终标题，只返回JSON。\n${JSON.stringify(generatePayload, null, 2)}`;
+  const generateMessages = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: buildVisionContent(generateText, requestImages) }
   ];
 
   try {
-    const content = await postChatCompletion(config, apiKey, messagesWithImages);
-    return normalizeTitles(extractJSON(content));
+    const content = await postChatCompletion(config, apiKey, generateMessages);
+    const titles = normalizeTitles(extractJSON(content));
+    if (titles.japaneseTitle.length < 150) {
+      console.warn(`[标题] 日文标题 ${titles.japaneseTitle.length} 字符，不足 150`);
+    } else {
+      console.log(`[标题] 第二步生成完成: ${titles.japaneseTitle.length} 字符`);
+    }
+    return titles;
   } catch (error) {
+    // 如果带图片失败，去掉图片重试
     if (requestImages.length) {
-      const content = await postChatCompletion(config, apiKey, [
-        { role: 'system', content: templates.titleRewriteSystem || defaultTitleRewritePrompt() },
-        { role: 'user', content: userText }
-      ]);
-      return normalizeTitles(extractJSON(content));
+      try {
+        const content = await postChatCompletion(config, apiKey, [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: generateText }
+        ]);
+        return normalizeTitles(extractJSON(content));
+      } catch (_) {}
     }
     throw error;
   }
@@ -223,7 +268,7 @@ function normalizeTitles(parsed) {
 function sanitizeJapaneseTitle(title) {
   const cleaned = String(title || "")
     .replace(/[!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~\s]/g, "")
-    .replace(/[“”‘’，。！？、；：￥（）【】《》—…·\s]/g, "");
+    .replace(/[「」『』""''，。！？、；：￥（）【】《》—…·\s]/g, "");
   const chars = Array.from(cleaned);
   if (chars.length < 150) {
     console.warn("[标题] 日文标题仅 " + chars.length + " 字符，不足 150");
