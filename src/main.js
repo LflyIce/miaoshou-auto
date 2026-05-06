@@ -9,7 +9,7 @@ const { fillProductTitles } = require('./title_filler');
 const { RunLogger } = require('./logger');
 const { navigateToModule } = require('./module_navigator');
 const { chooseBestOption } = require('./option_matcher');
-const { readProductInfo, readProductLink } = require('./page_reader');
+const { readProductInfo, readProductLink, readTotalProductCount, readCurrentProductIndex, readCurrentProductImageUrl } = require('./page_reader');
 const { CategoryKnowledge, readCurrentCategory } = require('./category_knowledge');
 const { ProductExporter } = require('./product_export');
 const { readSkuTableData } = require('./sku_reader');
@@ -53,7 +53,8 @@ async function main() {
     products: 0,
     savedProducts: 0,
     saveFailedProducts: 0,
-    skippedProducts: 0
+    skippedProducts: 0,
+    totalProducts: 0
   };
   const batchConfig = config.batch || {};
   const maxProducts = Number(batchConfig.maxProducts || 0);
@@ -66,11 +67,31 @@ async function main() {
       await waitForEnter('[等待] 请在浏览器中打开或确认当前商品编辑页，然后按回车开始扫描');
     }
 
+    // 在批量开始前读取总产品数和当前编辑的商品索引
+    const [countResult, indexResult] = await Promise.all([
+      readTotalProductCount(page),
+      readCurrentProductIndex(page)
+    ]);
+    if (countResult.total > 0) {
+      summary.totalProducts = countResult.total;
+      console.log(`[统计] 检测到商品总数: ${countResult.total}（方式: ${countResult.method}）`);
+    } else {
+      console.log(`[统计] 未能检测到商品总数（${countResult.method}），将以实际处理数量为准`);
+    }
+    let startProductIndex = indexResult.index || 1;
+    if (indexResult.total > 0 && summary.totalProducts === 0) {
+      summary.totalProducts = indexResult.total;
+    }
+    console.log(`[统计] 当前编辑商品索引: ${startProductIndex}${indexResult.total > 0 ? '/' + indexResult.total : ''}（方式: ${indexResult.method}）`);
+
     while (!maxProducts || summary.products < maxProducts) {
-      const productIndex = summary.products + 1;
+      const productIndex = startProductIndex + summary.products;
+      const progressLabel = summary.totalProducts > 0
+        ? `[${productIndex}/${summary.totalProducts}]`
+        : `第 ${productIndex} 个`;
+      console.log(`\n====== 开始处理${progressLabel}商品 ======`);
       const productSummary = createProductSummary();
-      console.log(`\n====== 开始处理第 ${productIndex} 个商品 ======`);
-      const result = await processCurrentProduct(page, config, logger, productSummary, { productIndex, categoryKnowledge });
+      const result = await processCurrentProduct(page, config, logger, productSummary, { productIndex, categoryKnowledge, exporter });
 
       if (result.skipped) {
         summary.products += 1;
@@ -80,10 +101,7 @@ async function main() {
         continue;
       }
 
-      if (result.japaneseTitle || result.productInfo) {
-        await exportProductData(page, exporter, result.productInfo, result.japaneseTitle || '');
-        await exporter.save();
-      }
+      // exportProductData 已在 processCurrentProduct 内部调用，确保 SKU 表格仍可见
 
       if (config.behavior.saveAfterFill) {
         const saveResult = await saveCurrentProductWithRetry(page, config, logger, result.productInfo, productSummary, productIndex, categoryKnowledge);
@@ -162,8 +180,26 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
   console.log(`[页面] 标题: ${summary.productTitle}`);
   console.log(`[页面] 图片数量: ${(productInfo.images || []).length}`);
 
+  // 提前从左侧商品列表读取当前商品的图片URL
+  const goodsListImageUrl = await readCurrentProductImageUrl(page);
+  if (goodsListImageUrl) {
+    console.log(`[图片] 商品列表图片: ${goodsListImageUrl.slice(0, 80)}...`);
+  }
+
   console.log(`[${productIndexLabel}][2/5] 优化并填写产品标题...`);
   const japaneseTitle = await rewriteAndFillTitles(page, logger, productInfo, summary);
+
+  // 在切换到"类别&属性"模块之前，提前读取SKU数据（此时仍在产品信息页面，SKU表格可见）
+  let earlySkuData = null;
+  try {
+    earlySkuData = await readSkuTableData(page);
+    if (earlySkuData && (earlySkuData.thumbnailUrl || earlySkuData.declaredPrice || earlySkuData.colors.length)) {
+      console.log(`[SKU] 预读取成功: ${earlySkuData.rowCount}行, 规格: ${earlySkuData.colors.join(', ') || '(无)'}, 申报价: ${earlySkuData.declaredPrice || '(无)'}`);
+    }
+  } catch (e) {
+    console.warn(`[SKU] 预读取失败: ${e.message}`);
+  }
+  const earlyProductLink = await readProductLink(page);
 
   const attributesModule = config.modules && config.modules.attributes
     ? config.modules.attributes
@@ -231,6 +267,24 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
       reason: `字段【${skipAttr.name}】无可选选项，跳过商品`
     }));
     summary.skipped += 1;
+    const exporter = options.exporter;
+    if (exporter) {
+      try {
+        const skuData = earlySkuData || { colors: [], declaredPrice: '', thumbnailUrl: '', rowCount: 0 };
+        const productUrl = earlyProductLink || productInfo.url || '';
+        const imageUrl = goodsListImageUrl || skuData.thumbnailUrl || (productInfo.images && productInfo.images[0]) || '';
+        exporter.addProduct({
+          imageUrl: imageUrl,
+          productUrl: productUrl,
+          japaneseTitle: '',
+          specifications: skuData.colors.join(', '),
+          declaredPrice: skuData.declaredPrice
+        });
+        await exporter.save();
+      } catch (e) {
+        console.warn(`[导出] 跳过商品导出失败: ${e.message}`);
+      }
+    }
     return { productInfo, navigationResult, skipped: true };
   }
 
@@ -306,6 +360,31 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
         error: errorMessage
       }));
     }
+  }
+
+  // 在页面仍可用时立即导出产品数据（使用提前读取的SKU数据）
+  const exporter = options.exporter;
+  console.log(`[导出-DEBUG] exporter=${!!exporter}, japaneseTitle=${!!japaneseTitle}, productInfo=${!!productInfo}`);
+  if (exporter && (japaneseTitle || productInfo)) {
+    try {
+      const skuData = earlySkuData || { colors: [], declaredPrice: '', thumbnailUrl: '', rowCount: 0 };
+      const productUrl = earlyProductLink || productInfo.url || '';
+      const imageUrl = goodsListImageUrl || skuData.thumbnailUrl || (productInfo.images && productInfo.images[0]) || '';
+      console.log(`[导出-DEBUG] 准备写入: imageUrl=${imageUrl.slice(0, 60)}, productUrl=${productUrl.slice(0, 60)}, japaneseTitle=${(japaneseTitle || '').slice(0, 40)}`);
+      exporter.addProduct({
+        imageUrl: imageUrl,
+        productUrl: productUrl,
+        japaneseTitle: japaneseTitle || '',
+        specifications: skuData.colors.join(', '),
+        declaredPrice: skuData.declaredPrice
+      });
+      await exporter.save();
+      console.log(`[导出] 已写入商品数据: ${japaneseTitle || productInfo.title || ''}`);
+    } catch (error) {
+      console.warn(`[导出] 产品数据导出失败: ${error.message}\n${error.stack}`);
+    }
+  } else {
+    console.log(`[导出-DEBUG] 跳过导出: exporter=${!!exporter}, hasTitle=${!!japaneseTitle}, hasInfo=${!!productInfo}`);
   }
 
   return { productInfo, navigationResult, japaneseTitle };
@@ -1049,6 +1128,9 @@ function parseErrorFields(errorMessage) {
 function printSummary(summary, logger) {
   console.log('\n====== 本次处理汇总 ======');
   console.log(`本次最后处理商品：${summary.productTitle}`);
+  if (summary.totalProducts > 0) {
+    console.log(`商品总数：${summary.totalProducts}`);
+  }
   console.log(`处理商品数：${summary.products}`);
   console.log(`保存成功商品数：${summary.savedProducts}`);
   console.log(`保存失败跳过商品数：${summary.saveFailedProducts}`);

@@ -127,7 +127,164 @@ async function readProductLink(page) {
   }).catch(() => '');
 }
 
+async function readTotalProductCount(page) {
+  return page.evaluate(() => {
+    function visible(el) {
+      const rect = el.getBoundingClientRect();
+      const style = window.getComputedStyle(el);
+      return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+    }
+    function textOf(el) {
+      return (el && (el.innerText || el.textContent) || '').replace(/\s+/g, ' ').trim();
+    }
+
+    // 方法1：从分页器读取总数（如 "共 50 条" 或 "Total 50" 等）
+    const paginationSelectors = [
+      '.el-pagination__total',
+      '.ant-pagination-total-text',
+      '.el-pagination .total',
+      '.pagination .total',
+      '.el-pagination__sizes + .el-pagination__total',
+      '[class*="pagination"] [class*="total"]',
+      '[class*="pagination"]'
+    ];
+    for (const selector of paginationSelectors) {
+      const nodes = Array.from(document.querySelectorAll(selector)).filter(visible);
+      for (const node of nodes) {
+        const text = textOf(node);
+        const match = text.match(/(\d+)\s*(?:条|个|件|items?|products?|total|records?)/i);
+        if (match) return { total: parseInt(match[1], 10), method: 'pagination_text', raw: text };
+        const numMatch = text.match(/(\d+)/);
+        if (numMatch && /共|total|全部|all/i.test(text)) return { total: parseInt(numMatch[1], 10), method: 'pagination_text', raw: text };
+      }
+    }
+
+    // 方法2：从页面任意位置读取 "共 X 条/件/个" 文本
+    const bodyText = textOf(document.body);
+    const globalMatch = bodyText.match(/共\s*(\d+)\s*(?:条|个|件|items?|products?)/i);
+    if (globalMatch) return { total: parseInt(globalMatch[1], 10), method: 'global_text', raw: globalMatch[0] };
+
+    // 方法3：从右侧商品列表直接数 goods-item 数量，加上分页信息
+    const listRoots = Array.from(document.querySelectorAll(
+      '.goods-list-box, .goods-list, .pro-scrollbar.goods-list, [class*="goods-list"], [class*="product-list"]'
+    )).filter(visible);
+
+    let maxItemCount = 0;
+    for (const root of listRoots) {
+      const items = root.querySelectorAll('.goods-item');
+      if (items.length > maxItemCount) maxItemCount = items.length;
+    }
+
+    if (maxItemCount > 0) {
+      // 检查是否有分页且能读取到总页数或总条数
+      const pagerText = document.querySelector('.el-pagination, .ant-pagination, [class*="pager"], [class*="pagination"]');
+      if (pagerText) {
+        const pt = textOf(pagerText);
+        const pageNumMatch = pt.match(/(\d+)\s*(?:页|pages?)/i);
+        const pageTotalMatch = pt.match(/(\d+)\s*(?:条|个|件|total)/i);
+        if (pageTotalMatch) return { total: parseInt(pageTotalMatch[1], 10), method: 'list_with_pager', raw: pt };
+        if (pageNumMatch) {
+          const totalPages = parseInt(pageNumMatch[1], 10);
+          if (totalPages > 1) return { total: totalPages * maxItemCount, method: 'list_pages_estimate', raw: pt };
+        }
+      }
+      return { total: maxItemCount, method: 'list_count', raw: `商品列表项数: ${maxItemCount}` };
+    }
+
+    // 方法4：读取左侧/任意列表的列表项
+    const listItems = Array.from(document.querySelectorAll('[class*="left"] [class*="item"], [class*="side"] [class*="item"]')).filter(visible);
+    if (listItems.length > 0) return { total: listItems.length, method: 'left_list_count', raw: `左侧列表项数: ${listItems.length}` };
+
+    return { total: 0, method: 'not_found', raw: '' };
+  }).catch(() => ({ total: 0, method: 'error', raw: '' }));
+}
+
+async function readCurrentProductIndex(page) {
+  return page.evaluate(() => {
+    function visible(el) {
+      const rect = el.getBoundingClientRect();
+      const style = window.getComputedStyle(el);
+      return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+    }
+
+    // 从右侧商品列表中找到 active 项的索引
+    const listRoots = Array.from(document.querySelectorAll(
+      '.goods-list-box, .goods-list, .pro-scrollbar.goods-list, [class*="goods-list"], [class*="product-list"]'
+    )).filter(visible);
+
+    for (const root of listRoots) {
+      const items = Array.from(root.querySelectorAll('.goods-item'));
+      for (let i = 0; i < items.length; i++) {
+        if (/\bactive\b|\bselected\b|\bcurrent\b|\bis-active\b/.test(`${items[i].className || ''}`)) {
+          return { index: i + 1, total: items.length, method: 'goods_list_active' };
+        }
+      }
+    }
+
+    // 从左侧/任意列表中查找 active 项
+    const activeSelector = '.active,.selected,.current,.is-active,[aria-selected="true"]';
+    const activeNodes = Array.from(document.querySelectorAll(activeSelector)).filter((el) => {
+      if (!visible(el)) return false;
+      return el.getBoundingClientRect().left < window.innerWidth * 0.55;
+    });
+
+    for (const active of activeNodes) {
+      let container = active.parentElement;
+      for (let depth = 0; container && container !== document.body && depth < 6; depth += 1) {
+        const children = Array.from(container.children).filter(visible);
+        const index = children.findIndex((child) => child === active || child.contains(active));
+        if (index >= 0 && children.length > 1) {
+          return { index: index + 1, total: children.length, method: 'left_list_active' };
+        }
+        container = container.parentElement;
+      }
+    }
+
+    return { index: 1, total: 0, method: 'not_found' };
+  }).catch(() => ({ index: 1, total: 0, method: 'error' }));
+}
+
+async function readCurrentProductImageUrl(page) {
+  return page.evaluate(() => {
+    function visible(el) {
+      const rect = el.getBoundingClientRect();
+      const style = window.getComputedStyle(el);
+      return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+    }
+
+    // 从右侧商品列表的 active 项读取商品图片
+    const listRoots = Array.from(document.querySelectorAll(
+      '.goods-list-box, .goods-list, .pro-scrollbar.goods-list, [class*="goods-list"], [class*="product-list"]'
+    )).filter(visible);
+
+    for (const root of listRoots) {
+      const items = Array.from(root.querySelectorAll('.goods-item'));
+      for (const item of items) {
+        if (!/\bactive\b|\bselected\b|\bcurrent\b|\bis-active\b/.test(`${item.className || ''}`)) continue;
+        // 优先从 div.status-img-box 的 src 属性读取原始 URL
+        const imgBox = item.querySelector('.status-img-box.goods-img, .goods-img');
+        if (imgBox) {
+          const divSrc = imgBox.getAttribute('src');
+          if (divSrc) return divSrc;
+        }
+        // 兜底：从 img 标签读取
+        const img = item.querySelector('.status-img-box img, .goods-img img, img');
+        if (img) {
+          const src = img.src || img.getAttribute('src') || '';
+          // 去掉 webp 后缀
+          return src.replace(/\.webp$/, '').replace(/_\.\w+$/, '');
+        }
+      }
+    }
+
+    return '';
+  }).catch(() => '');
+}
+
 module.exports = {
   readProductInfo,
-  readProductLink
+  readProductLink,
+  readTotalProductCount,
+  readCurrentProductIndex,
+  readCurrentProductImageUrl
 };
