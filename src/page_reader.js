@@ -112,13 +112,35 @@ async function readImages(page) {
 
 async function readProductLink(page) {
   return page.evaluate(() => {
-    const candidates = [
+    // 优先从右侧商品列表的 active 项读取产品链接
+    const activeSelectors = [
+      '.goods-item.active .goods-other-info a',
+      '.goods-item.selected .goods-other-info a',
+      '.goods-item.current .goods-other-info a',
+      '.goods-item.is-active .goods-other-info a',
       '.list-goods-item.active .goods-other-info a',
+      '.list-goods-item.selected .goods-other-info a'
+    ];
+
+    for (const selector of activeSelectors) {
+      const link = document.querySelector(selector);
+      if (link && link.href) return link.href;
+    }
+
+    // 兜底：遍历 goods-item 列表，找带 active/selected 类名的
+    const items = Array.from(document.querySelectorAll('.goods-item'));
+    for (const item of items) {
+      if (!/\bactive\b|\bselected\b|\bcurrent\b|\bis-active\b/.test(item.className || '')) continue;
+      const link = item.querySelector('.goods-other-info a');
+      if (link && link.href) return link.href;
+    }
+
+    // 最后兜底
+    const fallbacks = [
       '.list-goods-item .goods-other-info a',
       '.goods-other-info a'
     ];
-
-    for (const selector of candidates) {
+    for (const selector of fallbacks) {
       const link = document.querySelector(selector);
       if (link && link.href) return link.href;
     }
