@@ -2,15 +2,17 @@ require('dotenv').config();
 
 const fs = require('fs');
 const { chromium } = require('playwright');
-const { analyzeAttributes, rewriteProductTitles, secondChoice } = require('./ai_analyzer');
+const { analyzeAttributes, analyzeSaveError, rewriteProductTitles, secondChoice } = require('./ai_analyzer');
 const { scanRequiredAttributes } = require('./attribute_scanner');
 const { fillAttribute } = require('./filler');
 const { fillProductTitles } = require('./title_filler');
 const { RunLogger } = require('./logger');
 const { navigateToModule } = require('./module_navigator');
 const { chooseBestOption } = require('./option_matcher');
-const { readProductInfo } = require('./page_reader');
+const { readProductInfo, readProductLink } = require('./page_reader');
 const { CategoryKnowledge, readCurrentCategory } = require('./category_knowledge');
+const { ProductExporter } = require('./product_export');
+const { readSkuTableData } = require('./sku_reader');
 const {
   ensureProjectDirs,
   getBrowserContextOptions,
@@ -30,6 +32,8 @@ async function main() {
   await logger.init();
   const categoryKnowledge = CategoryKnowledge.fromConfig(config);
   await categoryKnowledge.load();
+  const exporter = new ProductExporter();
+  await exporter.init();
 
   const statePath = resolveRoot('storage', 'miaoshou_state.json');
   const storageState = fs.existsSync(statePath) ? statePath : undefined;
@@ -76,6 +80,11 @@ async function main() {
         continue;
       }
 
+      if (result.japaneseTitle || result.productInfo) {
+        await exportProductData(page, exporter, result.productInfo, result.japaneseTitle || '');
+        await exporter.save();
+      }
+
       if (config.behavior.saveAfterFill) {
         const saveResult = await saveCurrentProductWithRetry(page, config, logger, result.productInfo, productSummary, productIndex, categoryKnowledge);
         if (saveResult.success) {
@@ -106,6 +115,7 @@ async function main() {
       await waitForNextProductReady(page, result.productInfo, config);
     }
   } finally {
+    await exporter.save().catch((error) => console.warn(`[导出] 保存失败: ${error.message}`));
     await categoryKnowledge.save();
     await logger.save();
     printSummary(summary, logger);
@@ -153,7 +163,7 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
   console.log(`[页面] 图片数量: ${(productInfo.images || []).length}`);
 
   console.log(`[${productIndexLabel}][2/5] 优化并填写产品标题...`);
-  await rewriteAndFillTitles(page, logger, productInfo, summary);
+  const japaneseTitle = await rewriteAndFillTitles(page, logger, productInfo, summary);
 
   const attributesModule = config.modules && config.modules.attributes
     ? config.modules.attributes
@@ -169,7 +179,7 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
   }
 
   console.log(`[${productIndexLabel}][3/5] 扫描产品属性必填项...`);
-  const attributes = await scanRequiredAttributes(page);
+  const attributes = await scanRequiredAttributes(page, { errorFields: options.errorFields || [] });
   summary.requiredCount += attributes.length;
   console.log(`[扫描] 必填属性数量: ${attributes.length}`);
   attributes.forEach((attr, index) => {
@@ -298,7 +308,7 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
     }
   }
 
-  return { productInfo, navigationResult };
+  return { productInfo, navigationResult, japaneseTitle };
 }
 
 async function decideFinalValue(attr, ai, productInfo) {
@@ -404,7 +414,7 @@ async function rewriteAndFillTitles(page, logger, productInfo, summary) {
       reason: '未读取到原始标题，跳过标题优化',
       error: '未读取到原始标题，跳过标题优化'
     }));
-    return;
+    return '';
   }
 
   let titles;
@@ -421,7 +431,7 @@ async function rewriteAndFillTitles(page, logger, productInfo, summary) {
       reason: `标题优化失败: ${error.message}`,
       error: error.message
     }));
-    return;
+    return '';
   }
 
   const fillResult = await fillProductTitles(page, titles);
@@ -482,6 +492,27 @@ async function rewriteAndFillTitles(page, logger, productInfo, summary) {
       reason: fillResult.englishTitleError || '英文标题填写失败',
       error: fillResult.englishTitleError || '英文标题填写失败'
     }));
+  }
+
+  return (titles && titles.japaneseTitle) || '';
+}
+
+async function exportProductData(page, exporter, productInfo, japaneseTitle) {
+  try {
+    const [productUrl, skuData] = await Promise.all([
+      readProductLink(page),
+      readSkuTableData(page)
+    ]);
+
+    exporter.addProduct({
+      imageUrl: skuData.thumbnailUrl || (productInfo.images && productInfo.images[0]) || '',
+      productUrl: productUrl || productInfo.url || '',
+      japaneseTitle: japaneseTitle || '',
+      specifications: skuData.colors.join(', '),
+      declaredPrice: skuData.declaredPrice
+    });
+  } catch (error) {
+    console.warn(`[导出] 产品数据导出失败: ${error.message}`);
   }
 }
 
@@ -545,16 +576,38 @@ async function saveCurrentProductWithRetry(page, config, logger, productInfo, su
     if (attempt >= maxAttempts) break;
 
     console.warn(`[保存] 保存失败提示：${message}`);
-    console.log('[保存] 关闭失败弹窗，重新扫描当前商品，尝试更正后再次保存...');
+    console.log('[保存] 关闭失败弹窗，调用 AI 分析错误原因...');
     await closeFeedbackOverlays(page);
+
+    const errorFields = parseErrorFields(message);
+    console.log(`[保存] 从错误信息中提取到字段：${errorFields.join(', ') || '(无)'}`);
+
+    let aiErrorFields = [];
+    try {
+      const aiAnalysis = await analyzeSaveError(message, productInfo);
+      if (aiAnalysis.corrections && aiAnalysis.corrections.length) {
+        console.log(`[保存] AI 分析建议修正：${aiAnalysis.corrections.map((c) => `${c.fieldName}=${c.suggestedValue}`).join(', ')}`);
+        for (const c of aiAnalysis.corrections) {
+          const fn = c.fieldName || c.name || '';
+          if (fn && !errorFields.includes(fn)) errorFields.push(fn);
+          if (fn && !aiErrorFields.includes(fn)) aiErrorFields.push(fn);
+        }
+      }
+    } catch (e) {
+      console.warn(`[保存] AI 错误分析异常: ${e.message}`);
+    }
+
+    console.log('[保存] 重新扫描当前商品（包含错误字段），尝试更正后再次保存...');
     const retrySummary = createProductSummary();
     await processCurrentProduct(page, config, logger, retrySummary, {
       productIndex: `${productIndex} 重试${attempt}`,
-      categoryKnowledge
+      categoryKnowledge,
+      errorFields
     });
     mergeProductSummary(summary, retrySummary);
   }
 
+  await closeFeedbackOverlays(page);
   const finalMessage = lastResult && (lastResult.message || lastResult.reason)
     ? lastResult.message || lastResult.reason
     : '保存失败';
@@ -834,8 +887,23 @@ async function clickNextInGoodsList(page) {
     console.log(`[下一商品] 已点击商品列表下一项${result.title ? `：${result.title}` : ''}`);
     const started = Date.now();
     let activeChanged = false;
-    while (Date.now() - started < 4000) {
+    while (Date.now() - started < 6000) {
       await page.waitForTimeout(400).catch(() => {});
+
+      const dismissed = await page.evaluate(() => {
+        const popup = document.querySelector('.el-message-box');
+        if (!popup || popup.offsetWidth === 0) return false;
+        const text = popup.textContent || '';
+        if (!text.includes('切换') && !text.includes('保存修改')) return false;
+        const btn = popup.querySelector('.el-button--primary');
+        if (btn) { btn.click(); return true; }
+        return false;
+      }).catch(() => false);
+      if (dismissed) {
+        console.log('[下一商品] 检测到"是否切换商品"弹窗，已点击确定');
+        await page.waitForTimeout(500).catch(() => {});
+      }
+
       activeChanged = await page.evaluate((clickedTitle) => {
         const active = document.querySelector('.goods-list-box .goods-item.active, .goods-item.active');
         const titleNode = active && active.querySelector('.item-title, [title]');
@@ -960,6 +1028,22 @@ function asArray(value) {
   if (Array.isArray(value)) return value.filter(Boolean);
   if (value) return [value];
   return [];
+}
+
+function parseErrorFields(errorMessage) {
+  const text = String(errorMessage || '');
+  const fields = [];
+  const patterns = [
+    /([^|，。、\s]{2,15})(?:不能为空|不能没|必填|请选择|未填写|有误)/g,
+  ];
+  for (const pattern of patterns) {
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      const field = match[1].trim();
+      if (field && !fields.includes(field)) fields.push(field);
+    }
+  }
+  return fields;
 }
 
 function printSummary(summary, logger) {

@@ -10,8 +10,9 @@ const OPTION_SELECTORS = [
   '.dropdown-menu li'
 ];
 
-async function scanRequiredAttributes(page) {
-  const rows = await page.evaluate(() => {
+async function scanRequiredAttributes(page, options = {}) {
+  const errorFields = (options.errorFields || []).map((f) => f.replace(/\s+/g, '').toLowerCase());
+  const rows = await page.evaluate((errorFields) => {
     const root = findCategoryAttributeRoot();
     if (!root) return [];
 
@@ -263,7 +264,14 @@ async function scanRequiredAttributes(page) {
 
     function shouldIgnoreName(name, row) {
       const text = `${name} ${textOf(row)}`;
-      return /发货仓库|运费模板|店铺|模板|保存当前配置|保存模板|模板管理|英语标题|AI生成|产品素材图|图片翻译|图片编辑|导出图片|添加水印|选中前|批量|同步|创建仓库|SKU|价格|库存|产品类别|商品类别|商品类目|产品类目|类目|分类/.test(text);
+      if (/发货仓库|运费模板|店铺|模板|保存当前配置|保存模板|模板管理|英语标题|AI生成|产品素材图|图片翻译|图片编辑|导出图片|添加水印|选中前|批量|同步|创建仓库|SKU|价格|库存|产品类别|商品类别|商品类目|产品类目|类目|分类/.test(text)) {
+        const nameClean = name.replace(/\s+/g, '').toLowerCase();
+        for (const ef of errorFields) {
+          if (nameClean.includes(ef) || ef.includes(nameClean)) return false;
+        }
+        return true;
+      }
+      return false;
     }
 
     function hasEditableControl(row) {
@@ -333,7 +341,7 @@ async function scanRequiredAttributes(page) {
         return true;
       });
     }
-  });
+  }, errorFields);
 
   for (const row of rows) {
     row.name = cleanAttributeName(row.name);

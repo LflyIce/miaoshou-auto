@@ -110,6 +110,24 @@ async function readImages(page) {
   });
 }
 
+async function readProductLink(page) {
+  return page.evaluate(() => {
+    const candidates = [
+      '.list-goods-item.active .goods-other-info a',
+      '.list-goods-item .goods-other-info a',
+      '.goods-other-info a'
+    ];
+
+    for (const selector of candidates) {
+      const link = document.querySelector(selector);
+      if (link && link.href) return link.href;
+    }
+
+    return '';
+  }).catch(() => '');
+}
+
 module.exports = {
-  readProductInfo
+  readProductInfo,
+  readProductLink
 };

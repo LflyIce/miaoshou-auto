@@ -330,6 +330,36 @@ function failedAnalysis(requiredAttributes, error) {
   };
 }
 
+async function analyzeSaveError(errorMessage, productInfo) {
+  const config = loadConfig();
+  const apiKey = process.env[config.ai.apiKeyEnv || 'ZAI_API_KEY'];
+  if (!apiKey) return { fields: [], corrections: [] };
+
+  const payload = {
+    errorMessage,
+    productTitle: productInfo.title || '',
+    productCategory: productInfo.categoryName || ''
+  };
+
+  const userText = `商品保存时遇到以下错误，请分析错误信息，指出哪些字段有问题，并建议修正值。\n\n${JSON.stringify(payload, null, 2)}\n\n只返回JSON，格式: { "corrections": [{ "fieldName": "字段名", "suggestedValue": "建议值", "reason": "理由" }] }`;
+
+  const messages = [
+    { role: 'system', content: '你是跨境电商商品编辑助手。根据保存失败的错误信息分析需要修正的字段，并建议修正值。只返回严格JSON。' },
+    { role: 'user', content: userText }
+  ];
+
+  try {
+    const content = await postChatCompletion(config, apiKey, messages);
+    const parsed = extractJSON(content);
+    const corrections = parsed.corrections || [];
+    const fields = corrections.map((c) => c.fieldName || c.name || c.field || '').filter(Boolean);
+    return { fields, corrections };
+  } catch (error) {
+    console.warn(`[AI] 保存错误分析失败: ${error.message}`);
+    return { fields: [], corrections: [] };
+  }
+}
+
 function defaultAnalysisPrompt() {
   return '你是跨境电商商品属性分析助手。对于 select 和 multi_select 类型字段，只能从 options 中选择。返回严格 JSON，不要 Markdown。无法判断时 value 填 null，need_manual 填 true。';
 }
@@ -367,6 +397,7 @@ function defaultTitleRewritePrompt() {
 
 module.exports = {
   analyzeAttributes,
+  analyzeSaveError,
   secondChoice,
   rewriteProductTitles,
   extractJSON
