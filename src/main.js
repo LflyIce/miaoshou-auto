@@ -479,6 +479,24 @@ async function decideFinalValue(attr, ai, productInfo) {
     };
   }
 
+  if (attr.controlType === 'material_ratio_table') {
+    const materialValue = ai.value ? String(ai.value).trim() : null;
+    if (!materialValue) {
+      return {
+        value: null,
+        method: 'manual_required',
+        confidence: 0,
+        reason: 'AI 未给出材质值'
+      };
+    }
+    return {
+      value: materialValue,
+      method: 'ai_material',
+      confidence: Number(ai.confidence || 0),
+      reason: ai.reason || 'AI 推断材质'
+    };
+  }
+
   return {
     value: null,
     method: 'manual_required',

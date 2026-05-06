@@ -353,6 +353,15 @@ async function scanRequiredAttributes(page, options = {}) {
         row.options = [];
       }
     }
+
+    if ((!row.alreadyFilled || row.errorMessage) && row.controlType === 'material_ratio_table') {
+      try {
+        row.options = await readMaterialTableOptions(page, row);
+      } catch (error) {
+        console.warn(`[扫描] ${row.name} 材质表格选项读取失败: ${error.message}`);
+        row.options = [];
+      }
+    }
   }
 
   return rows;
@@ -431,6 +440,75 @@ async function collectVisibleOptions(page) {
 async function closeDropdown(page) {
   await page.keyboard.press('Escape').catch(() => {});
   await sleep(100);
+}
+
+async function readMaterialTableOptions(page, attribute) {
+  const row = page.locator(attribute._rowSelector).first();
+  if (!(await row.count())) return [];
+
+  const hadExistingRow = (await row.locator('tbody tr').count().catch(() => 0)) > 0;
+
+  if (!hadExistingRow) {
+    const buttons = row.locator('button, .el-button');
+    const count = await buttons.count().catch(() => 0);
+    let added = false;
+    for (let i = 0; i < count; i += 1) {
+      const button = buttons.nth(i);
+      if (!(await button.isVisible().catch(() => false))) continue;
+      const text = await button.innerText().catch(() => '');
+      if (text && !/添加|新增|add/i.test(text)) continue;
+      try {
+        await button.scrollIntoViewIfNeeded();
+        await button.click({ timeout: 2500 });
+        added = true;
+        break;
+      } catch (_) {
+        continue;
+      }
+    }
+    if (!added) return [];
+
+    let rowAppeared = false;
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      if ((await row.locator('tbody tr').count().catch(() => 0)) > 0) { rowAppeared = true; break; }
+      await sleep(150);
+    }
+    if (!rowAppeared) return [];
+  }
+
+  const selectRow = row.locator('tbody tr').first();
+  const opened = await openSelect(selectRow);
+  if (!opened) {
+    await cleanupMaterialRow(row, hadExistingRow);
+    return [];
+  }
+
+  let options = [];
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    await sleep(250);
+    options = await collectVisibleOptions(page);
+    if (options.length) break;
+  }
+
+  await closeDropdown(page);
+  await cleanupMaterialRow(row, hadExistingRow);
+  return unique(options).map((item) => item.trim()).filter((item) => item && normalizeText(item));
+}
+
+async function cleanupMaterialRow(row, hadExistingRow) {
+  if (hadExistingRow) return;
+  const deleteButtons = row.locator('tbody tr button, tbody tr .el-button');
+  const count = await deleteButtons.count().catch(() => 0);
+  for (let i = 0; i < count; i += 1) {
+    const button = deleteButtons.nth(i);
+    if (!(await button.isVisible().catch(() => false))) continue;
+    const text = await button.innerText().catch(() => '');
+    if (text && /删除|移除|delete|remove/i.test(text)) {
+      await button.click({ timeout: 2500 }).catch(() => {});
+      break;
+    }
+  }
+  await sleep(200);
 }
 
 module.exports = {
