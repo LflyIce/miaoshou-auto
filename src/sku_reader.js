@@ -43,6 +43,24 @@ async function readSkuTableData(page) {
   });
 }
 
+async function readSpecInputValues(page) {
+  return page.evaluate(() => {
+    const inputs = Array.from(document.querySelectorAll('input[placeholder="请输入选项名称"]'));
+    return inputs
+      .filter((input) => {
+        const rect = input.getBoundingClientRect();
+        const style = window.getComputedStyle(input);
+        return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+      })
+      .map((input) => (input.value || '').trim())
+      .filter(Boolean);
+  }).catch((error) => {
+    console.warn(`[SKU读取] 读取规格输入值失败: ${error.message}`);
+    return null;
+  });
+}
+
 module.exports = {
-  readSkuTableData
+  readSkuTableData,
+  readSpecInputValues
 };

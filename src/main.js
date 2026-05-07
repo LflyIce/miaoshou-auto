@@ -12,7 +12,7 @@ const { chooseBestOption } = require('./option_matcher');
 const { readProductInfo, readProductLink, readTotalProductCount, readCurrentProductIndex, readCurrentProductImageUrl } = require('./page_reader');
 const { CategoryKnowledge, readCurrentCategory } = require('./category_knowledge');
 const { ProductExporter } = require('./product_export');
-const { readSkuTableData } = require('./sku_reader');
+const { readSkuTableData, readSpecInputValues } = require('./sku_reader');
 const { fillSkuProperties } = require('./sku_filler');
 const {
   ensureProjectDirs,
@@ -55,7 +55,8 @@ async function main() {
     savedProducts: 0,
     saveFailedProducts: 0,
     skippedProducts: 0,
-    totalProducts: 0
+    totalProducts: 0,
+    saveFailedTitles: []
   };
   const batchConfig = config.batch || {};
   const maxProducts = Number(batchConfig.maxProducts || 0);
@@ -112,6 +113,9 @@ async function main() {
           productSummary.skippedProducts += 1;
         } else {
           productSummary.saveFailedProducts += 1;
+          const failedTitle = productSummary.productTitle || result.productInfo.title || '(未知商品)';
+          productSummary.saveFailedTitles = productSummary.saveFailedTitles || [];
+          productSummary.saveFailedTitles.push(failedTitle);
         }
       } else {
         console.log('[保存] saveAfterFill=false，本次只填写，不自动保存，也不会自动进入下一个商品。');
@@ -164,6 +168,9 @@ function mergeProductSummary(total, productSummary) {
   total.savedProducts += productSummary.savedProducts || 0;
   total.saveFailedProducts += productSummary.saveFailedProducts || 0;
   total.skippedProducts += productSummary.skippedProducts || 0;
+  if (productSummary.saveFailedTitles && productSummary.saveFailedTitles.length) {
+    total.saveFailedTitles.push(...productSummary.saveFailedTitles);
+  }
 }
 
 async function processCurrentProduct(page, config, logger, summary, options = {}) {
@@ -203,15 +210,28 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
   const earlyProductLink = await readProductLink(page);
 
   // 在切换模块前编辑规格（规格一设标题为型号保留3项，规格二保留2项）
+  let skuEdited = false;
   try {
     const skuResult = await fillSkuProperties(page);
     if (skuResult.status === 'success' && skuResult.changed) {
+      skuEdited = true;
       console.log(`[规格] 编辑完成: 规格一${skuResult.specOneTitleChanged ? '标题已改' : ''}删除${skuResult.specOneTrimmed}项, 规格二删除${skuResult.specTwoTrimmed}项`);
     } else if (skuResult.status === 'skipped') {
       console.log(`[规格] ${skuResult.reason}`);
     }
   } catch (e) {
     console.warn(`[规格] 编辑失败: ${e.message}`);
+  }
+
+  // 规格编辑完成后从input读取实际保留的规格值
+  let editedSpecs = null;
+  if (skuEdited) {
+    editedSpecs = await readSpecInputValues(page);
+    if (editedSpecs && editedSpecs.length) {
+      console.log(`[SKU] 编辑后规格: ${editedSpecs.join(', ')}`);
+    } else {
+      console.log(`[SKU] 编辑后未读取到规格input值，导出时规格列将留空`);
+    }
   }
 
   const attributesModule = config.modules && config.modules.attributes
@@ -286,11 +306,12 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
         const skuData = earlySkuData || { colors: [], declaredPrice: '', thumbnailUrl: '', rowCount: 0 };
         const productUrl = earlyProductLink || productInfo.url || '';
         const imageUrl = goodsListImageUrl || skuData.thumbnailUrl || (productInfo.images && productInfo.images[0]) || '';
+        const skipSpecs = (editedSpecs && editedSpecs.length) ? editedSpecs.join(', ') : '';
         exporter.addProduct({
           imageUrl: imageUrl,
           productUrl: productUrl,
           japaneseTitle: '',
-          specifications: skuData.colors.join(', '),
+          specifications: skipSpecs,
           declaredPrice: skuData.declaredPrice
         });
         await exporter.save();
@@ -442,12 +463,13 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
       const skuData = earlySkuData || { colors: [], declaredPrice: '', thumbnailUrl: '', rowCount: 0 };
       const productUrl = earlyProductLink || productInfo.url || '';
       const imageUrl = goodsListImageUrl || skuData.thumbnailUrl || (productInfo.images && productInfo.images[0]) || '';
-      console.log(`[导出-DEBUG] 准备写入: imageUrl=${imageUrl.slice(0, 60)}, productUrl=${productUrl.slice(0, 60)}, japaneseTitle=${(japaneseTitle || '').slice(0, 40)}`);
+      const specifications = (editedSpecs && editedSpecs.length) ? editedSpecs.join(', ') : '';
+      console.log(`[导出-DEBUG] 准备写入: imageUrl=${imageUrl.slice(0, 60)}, productUrl=${productUrl.slice(0, 60)}, japaneseTitle=${(japaneseTitle || '').slice(0, 40)}, specs=${specifications}`);
       exporter.addProduct({
         imageUrl: imageUrl,
         productUrl: productUrl,
         japaneseTitle: japaneseTitle || '',
-        specifications: skuData.colors.join(', '),
+        specifications: specifications,
         declaredPrice: skuData.declaredPrice
       });
       await exporter.save();
@@ -786,6 +808,10 @@ async function saveCurrentProductWithRetry(page, config, logger, productInfo, su
 
 async function tryClickSave(page, config, attempt = 1) {
   console.log(`[保存] 第 ${attempt} 次尝试点击【保存修改】按钮...`);
+
+  // 先关闭可能遮挡保存按钮的弹窗/对话框（如"图片翻译"等）
+  await closeBlockingOverlays(page);
+
   const candidates = [
     ...asArray((config.batch || {}).saveButtonSelectors),
     '.J_collectBoxEditDialogCreateSave',
@@ -889,6 +915,20 @@ async function collectFeedbackText(page) {
   }).catch(() => []);
 
   return Array.from(new Set(messages)).join(' | ').trim();
+}
+
+async function closeBlockingOverlays(page) {
+  await page.evaluate(() => {
+    const overlays = Array.from(document.querySelectorAll('[role="dialog"][aria-modal="true"], .jx-overlay-dialog, .el-dialog__wrapper, .el-dialog'));
+    for (const overlay of overlays) {
+      const closeBtn = overlay.querySelector('.el-dialog__close, .el-dialog__headerbtn, [class*="close"], [aria-label="Close"]');
+      if (closeBtn) {
+        closeBtn.click();
+      }
+    }
+  }).catch(() => {});
+  await page.waitForTimeout(300).catch(() => {});
+  await closeFeedbackOverlays(page);
 }
 
 async function closeFeedbackOverlays(page) {
@@ -1232,6 +1272,10 @@ function printSummary(summary, logger) {
   console.log(`处理商品数：${summary.products}`);
   console.log(`保存成功商品数：${summary.savedProducts}`);
   console.log(`保存失败跳过商品数：${summary.saveFailedProducts}`);
+  if (summary.saveFailedTitles.length) {
+    console.log(`保存失败商品：`);
+    summary.saveFailedTitles.forEach((title, i) => console.log(`  ${i + 1}. ${title}`));
+  }
   console.log(`未保存跳过商品数：${summary.skippedProducts}`);
   console.log(`必填属性数量：${summary.requiredCount}`);
   console.log(`成功填写：${summary.success}`);
