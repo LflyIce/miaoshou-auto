@@ -919,8 +919,12 @@ async function collectFeedbackText(page) {
 
 async function closeBlockingOverlays(page) {
   await page.evaluate(() => {
+    // 编辑对话框内的关键按钮选择器，包含这些按钮的对话框不应被关闭
+    const editDialogButtons = '.J_collectBoxEditDialogCreateSave, .J_collectBoxEditDialogNext';
     const overlays = Array.from(document.querySelectorAll('[role="dialog"][aria-modal="true"], .jx-overlay-dialog, .el-dialog__wrapper, .el-dialog'));
     for (const overlay of overlays) {
+      // 跳过包含编辑操作按钮的主编辑对话框
+      if (overlay.querySelector(editDialogButtons)) continue;
       const closeBtn = overlay.querySelector('.el-dialog__close, .el-dialog__headerbtn, [class*="close"], [aria-label="Close"]');
       if (closeBtn) {
         closeBtn.click();
