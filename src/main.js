@@ -349,14 +349,26 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
   }
 
   console.log(`[${productIndexLabel}][4/5] 调用 AI 分析属性值...`);
-  const aiResult = todoAttributes.length
-    ? await analyzeAttributes(productInfo, todoAttributes, knowledgeReference)
+  const knowledgeDecisions = await buildKnowledgeDecisions(todoAttributes, knowledgeReference, productInfo);
+  const aiAttributes = todoAttributes.filter((attr) => !knowledgeDecisions.has(attr.name));
+  if (knowledgeDecisions.size) {
+    console.log(`[Knowledge] Reusing ${knowledgeDecisions.size} attribute value(s) from local category history.`);
+  }
+
+  const aiResult = aiAttributes.length
+    ? await analyzeAttributes(productInfo, aiAttributes, knowledgeReference)
     : { attributes: [] };
   const aiByName = new Map((aiResult.attributes || []).map((item) => [item.name, item]));
 
   console.log(`[${productIndexLabel}][5/5] 匹配页面真实选项并填写...`);
   for (const attr of todoAttributes) {
-    const ai = aiByName.get(attr.name) || {
+    const knowledgeDecision = knowledgeDecisions.get(attr.name);
+    const ai = knowledgeDecision ? {
+      value: knowledgeDecision.sourceValue,
+      confidence: knowledgeDecision.confidence,
+      reason: knowledgeDecision.reason,
+      need_manual: false
+    } : aiByName.get(attr.name) || {
       value: null,
       confidence: 0,
       reason: 'AI 未返回该字段',
@@ -364,7 +376,7 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
     };
 
     try {
-      const finalDecision = await decideFinalValue(attr, ai, productInfo);
+      const finalDecision = knowledgeDecision || await decideFinalValue(attr, ai, productInfo);
       if (!finalDecision.value || finalDecision.method === 'manual_required') {
         summary.failed += 1;
         logger.fail(baseRecord(productInfo, attr, {
@@ -420,14 +432,26 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
     for (const attr of cascadedAttributes) {
       console.log(`  + ${attr.name} | ${attr.controlType} | 选项 ${attr.options.length}`);
     }
-    const cascadedResult = cascadedAttributes.length
-      ? await analyzeAttributes(productInfo, cascadedAttributes, knowledgeReference)
+    const cascadedKnowledgeDecisions = await buildKnowledgeDecisions(cascadedAttributes, knowledgeReference, productInfo);
+    const cascadedAiAttributes = cascadedAttributes.filter((attr) => !cascadedKnowledgeDecisions.has(attr.name));
+    if (cascadedKnowledgeDecisions.size) {
+      console.log(`[Knowledge] Reusing ${cascadedKnowledgeDecisions.size} cascaded attribute value(s) from local category history.`);
+    }
+
+    const cascadedResult = cascadedAiAttributes.length
+      ? await analyzeAttributes(productInfo, cascadedAiAttributes, knowledgeReference)
       : { attributes: [] };
     const cascadedAiByName = new Map((cascadedResult.attributes || []).map((item) => [item.name, item]));
     for (const attr of cascadedAttributes) {
-      const ai = cascadedAiByName.get(attr.name) || { value: null, confidence: 0, reason: 'AI 未返回该字段', need_manual: true };
+      const knowledgeDecision = cascadedKnowledgeDecisions.get(attr.name);
+      const ai = knowledgeDecision ? {
+        value: knowledgeDecision.sourceValue,
+        confidence: knowledgeDecision.confidence,
+        reason: knowledgeDecision.reason,
+        need_manual: false
+      } : cascadedAiByName.get(attr.name) || { value: null, confidence: 0, reason: 'AI 未返回该字段', need_manual: true };
       try {
-        const finalDecision = await decideFinalValue(attr, ai, productInfo);
+        const finalDecision = knowledgeDecision || await decideFinalValue(attr, ai, productInfo);
         if (!finalDecision.value || finalDecision.method === 'manual_required') {
           summary.failed += 1;
           logger.fail(baseRecord(productInfo, attr, {
@@ -495,6 +519,133 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
   }
 
   return { productInfo, navigationResult, japaneseTitle };
+}
+
+async function buildKnowledgeDecisions(attributes, knowledgeReference, productInfo) {
+  const decisions = new Map();
+  if (!knowledgeReference || !Array.isArray(knowledgeReference.knownAttributes)) return decisions;
+
+  const knownByName = new Map(
+    knowledgeReference.knownAttributes.map((item) => [normalizeKnowledgeName(item.name), item])
+  );
+
+  for (const attr of attributes || []) {
+    const known = knownByName.get(normalizeKnowledgeName(attr.name));
+    if (!known || !Array.isArray(known.commonValues) || !known.commonValues.length) continue;
+
+    const decision = await decideFromKnowledge(attr, known, productInfo);
+    if (decision && decision.value) decisions.set(attr.name, decision);
+  }
+
+  return decisions;
+}
+
+async function decideFromKnowledge(attr, known, productInfo) {
+  const commonValues = known.commonValues
+    .map((item) => ({
+      value: String(item.value || '').trim(),
+      count: Number(item.count || 0)
+    }))
+    .filter((item) => item.value);
+  if (!commonValues.length) return null;
+
+  if (attr.controlType === 'input') {
+    const item = commonValues[0];
+    return knowledgeDecision(item.value, item, 'knowledge_text', confidenceFromHistory(item), '命中本地类目知识库文本值');
+  }
+
+  if (attr.controlType === 'material_ratio_table') {
+    const item = commonValues[0];
+    return knowledgeDecision(item.value, item, 'knowledge_material', confidenceFromHistory(item), '命中本地类目知识库材质值');
+  }
+
+  if (attr.controlType === 'select') {
+    if (!Array.isArray(attr.options) || !attr.options.length) return null;
+    for (const item of commonValues) {
+      const matched = await chooseBestOption({
+        attrName: attr.name,
+        inferredValue: item.value,
+        availableOptions: attr.options,
+        productTitle: productInfo.title,
+        images: productInfo.images
+      });
+      if (!isReliableKnowledgeMatch(matched)) continue;
+      return knowledgeDecision(
+        matched.value,
+        item,
+        `knowledge_${matched.method}`,
+        Math.min(Number(matched.confidence || 0), confidenceFromHistory(item)),
+        `命中本地类目知识库：${item.value} -> ${matched.value}`
+      );
+    }
+  }
+
+  if (attr.controlType === 'multi_select') {
+    if (!Array.isArray(attr.options) || !attr.options.length) return null;
+    const matchedValues = [];
+    const reasons = [];
+    let confidence = 1;
+
+    for (const item of commonValues.slice(0, 5)) {
+      const matched = await chooseBestOption({
+        attrName: attr.name,
+        inferredValue: item.value,
+        availableOptions: attr.options,
+        productTitle: productInfo.title,
+        images: productInfo.images
+      });
+      if (!isReliableKnowledgeMatch(matched) || matchedValues.includes(matched.value)) continue;
+      matchedValues.push(matched.value);
+      confidence = Math.min(confidence, Number(matched.confidence || 0), confidenceFromHistory(item));
+      reasons.push(`${item.value}->${matched.value}`);
+    }
+
+    if (matchedValues.length) {
+      return knowledgeDecision(
+        matchedValues,
+        { value: matchedValues.join(','), count: matchedValues.length },
+        'knowledge_multi_match',
+        confidence,
+        `命中本地类目知识库：${reasons.join('; ')}`
+      );
+    }
+  }
+
+  return null;
+}
+
+function knowledgeDecision(value, source, method, confidence, reason) {
+  return {
+    value,
+    sourceValue: source.value,
+    method,
+    confidence,
+    reason
+  };
+}
+
+function confidenceFromHistory(item) {
+  return Math.min(0.96, 0.78 + Math.min(Number(item.count || 1), 6) * 0.03);
+}
+
+function isReliableKnowledgeMatch(decision) {
+  return decision && decision.value && [
+    'exact',
+    'normalized',
+    'synonym',
+    'contains',
+    'included_by',
+    'fuzzy'
+  ].includes(decision.method);
+}
+
+function normalizeKnowledgeName(value) {
+  return String(value || '')
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/[\\/:*?"<>|,.;'"`~!@#$%^&()[\]{}+=_-]/g, '')
+    .trim();
 }
 
 async function decideFinalValue(attr, ai, productInfo) {
