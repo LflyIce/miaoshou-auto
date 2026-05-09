@@ -14,6 +14,7 @@ const { CategoryKnowledge, readCurrentCategory } = require('./category_knowledge
 const { ProductExporter } = require('./product_export');
 const { readSkuTableData, readSpecInputValues } = require('./sku_reader');
 const { fillSkuProperties } = require('./sku_filler');
+const { cleanDescription } = require('./description_cleaner');
 const {
   ensureProjectDirs,
   getBrowserContextOptions,
@@ -196,6 +197,18 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
 
   console.log(`[${productIndexLabel}][2/5] 优化并填写产品标题...`);
   const japaneseTitle = await rewriteAndFillTitles(page, logger, productInfo, summary);
+
+  // 清理产品描述：删除文字模块
+  try {
+    const cleanResult = await cleanDescription(page);
+    if (cleanResult.deleted > 0) {
+      console.log(`[描述] 清理完成: ${cleanResult.reason}`);
+    } else {
+      console.log(`[描述] ${cleanResult.reason}`);
+    }
+  } catch (e) {
+    console.warn(`[描述] 清理失败: ${e.message}`);
+  }
 
   // 在切换到"类别&属性"模块之前，提前读取SKU数据（此时仍在产品信息页面，SKU表格可见）
   let earlySkuData = null;
