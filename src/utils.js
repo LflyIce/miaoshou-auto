@@ -4,9 +4,12 @@ const path = require('path');
 const readline = require('readline');
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
+const DATA_ROOT = process.env.MIAOSHOU_DATA_ROOT
+  ? path.resolve(process.env.MIAOSHOU_DATA_ROOT)
+  : PROJECT_ROOT;
 
 function resolveRoot(...parts) {
-  return path.join(PROJECT_ROOT, ...parts);
+  return path.join(DATA_ROOT, ...parts);
 }
 
 async function ensureDir(dirPath) {
@@ -16,7 +19,6 @@ async function ensureDir(dirPath) {
 async function ensureProjectDirs() {
   await Promise.all([
     ensureDir(resolveRoot('config')),
-    ensureDir(resolveRoot('src')),
     ensureDir(resolveRoot('data')),
     ensureDir(resolveRoot('data', 'screenshots')),
     ensureDir(resolveRoot('storage'))
@@ -208,6 +210,7 @@ function toArrayValue(value) {
 
 module.exports = {
   PROJECT_ROOT,
+  DATA_ROOT,
   resolveRoot,
   ensureDir,
   ensureProjectDirs,

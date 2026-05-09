@@ -2,10 +2,12 @@
   "name": "miaoshou-attribute-helper",
   "version": "1.0.0",
   "description": "本地妙手ERP商品必填属性自动填写助手",
-  "main": "src/main.js",
+  "main": "electron/main.js",
   "scripts": {
     "login": "node src/login.js",
-    "fill": "node src/main.js"
+    "fill": "node src/main.js",
+    "app": "electron .",
+    "dist": "electron-builder"
   },
   "keywords": [
     "miaoshou",
@@ -20,6 +22,39 @@
     "exceljs": "^4.4.0",
     "openai": "^4.76.0",
     "playwright": "^1.49.1"
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.local.miaoshou-attribute-helper",
+    "productName": "妙手属性助手",
+    "asar": false,
+    "files": [
+      "electron/**/*",
+      "src/**/*",
+      "config/**/*",
+      "storage/.gitkeep",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "storage/category_attribute_knowledge.json",
+        "to": "storage/category_attribute_knowledge.json",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   },
   "engines": {
     "node": ">=18"

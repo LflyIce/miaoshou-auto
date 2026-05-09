@@ -1,6 +1,10 @@
 node_modules/
+.npm-cache/
 .env
 data/*.xlsx
 data/screenshots/*.png
 storage/miaoshou_state.json
+dist/
+release/
 npm-debug.log*
+.electron-*.log
