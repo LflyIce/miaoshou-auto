@@ -2,7 +2,17 @@
   "permissions": {
     "allow": [
       "Bash(node *)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(curl -s -m 30 -w '\\\\n--- HTTP_STATUS: %{http_code} ---\\\\n' https://open.bigmodel.cn/api/anthropic/v1/messages -H 'Authorization: Bearer e8e46302f2b3480490c42a14218d31af.A8GHmzsMPVbfU64N' -H 'anthropic-version: 2023-06-01' -H 'Content-Type: application/json' -d '{\"model\":\"glm-5.1\",\"max_tokens\":16,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}')",
+      "Bash(curl -s -m 30 -w '\\\\n--- HTTP_STATUS: %{http_code} ---\\\\n' https://open.bigmodel.cn/api/anthropic/v1/messages -H 'x-api-key: e8e46302f2b3480490c42a14218d31af.A8GHmzsMPVbfU64N' -H 'anthropic-version: 2023-06-01' -H 'Content-Type: application/json' -d '{\"model\":\"glm-5.1\",\"max_tokens\":16,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}')",
+      "Bash(npm run *)",
+      "Bash(tasklist)",
+      "Bash(tasklist /FI \"IMAGENAME eq 妙手属性助手.exe\")",
+      "Bash(tasklist /FI \"IMAGENAME eq electron.exe\")",
+      "Bash(export MSYS_NO_PATHCONV=1)",
+      "Bash(tasklist /FI \"IMAGENAME eq 妙手属性助手.exe\" /NH)",
+      "Bash(tasklist /FI \"IMAGENAME eq electron.exe\" /NH)",
+      "Bash(taskkill /F /IM \"妙手属性助手.exe\")"
     ]
   }
 }

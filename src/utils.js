@@ -41,10 +41,11 @@ function loadConfig() {
     productEditUrl: '',
     headless: false,
     ai: {
-      baseURL: 'https://open.bigmodel.cn/api/paas/v4/',
-      model: 'GLM-5V-Turbo',
+      baseURL: 'https://open.bigmodel.cn/api/anthropic',
+      model: 'glm-5.1',
       apiKeyEnv: 'ZAI_API_KEY',
-      sendImages: true
+      sendImages: true,
+      maxTokens: 4096
     },
     thresholds: {
       autoSelectScore: 0.85,

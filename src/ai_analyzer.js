@@ -232,30 +232,37 @@ async function rewriteProductTitles(productInfo) {
   }
 }
 
+function splitSystemMessage(messages) {
+  const systemParts = [];
+  const remaining = [];
+  for (const msg of messages) {
+    if (msg && msg.role === 'system') {
+      const c = msg.content;
+      systemParts.push(typeof c === 'string' ? c : JSON.stringify(c));
+    } else {
+      remaining.push(msg);
+    }
+  }
+  return { system: systemParts.join('\n\n').trim(), remaining };
+}
+
 async function postChatCompletion(config, apiKey, messages) {
   if (typeof fetch !== 'function') {
     throw new Error('当前 Node.js 没有 fetch，请使用 Node.js 18 或更高版本');
   }
 
-  const endpoint = `${String(config.ai.baseURL || '').replace(/\/$/, '')}/chat/completions`;
-  const baseBody = {
-    model: config.ai.model,
-    messages,
-    temperature: 0.1,
-    thinking: { type: 'disabled' }
-  };
+  const endpoint = `${String(config.ai.baseURL || '').replace(/\/$/, '')}/v1/messages`;
+  const { system, remaining } = splitSystemMessage(messages);
 
-  try {
-    return await requestCompletion(endpoint, apiKey, {
-      ...baseBody,
-      response_format: { type: 'json_object' }
-    });
-  } catch (error) {
-    if (/response_format|json_object|400|unsupported/i.test(error.message)) {
-      return requestCompletion(endpoint, apiKey, baseBody);
-    }
-    throw error;
-  }
+  const body = {
+    model: config.ai.model,
+    messages: remaining,
+    max_tokens: Number(config.ai.maxTokens) || 4096,
+    temperature: 0.1
+  };
+  if (system) body.system = system;
+
+  return requestCompletion(endpoint, apiKey, body);
 }
 
 function normalizeTitles(parsed) {
@@ -290,6 +297,7 @@ async function requestCompletion(endpoint, apiKey, body) {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
+      'anthropic-version': '2023-06-01',
       'Content-Type': 'application/json'
     },
     body: JSON.stringify(body)
@@ -301,8 +309,12 @@ async function requestCompletion(endpoint, apiKey, body) {
   }
 
   const json = JSON.parse(text);
-  const content = json.choices && json.choices[0] && json.choices[0].message && json.choices[0].message.content;
-  if (!content) throw new Error('AI 响应为空');
+  const blocks = Array.isArray(json.content) ? json.content : [];
+  const content = blocks
+    .filter((b) => b && b.type === 'text' && typeof b.text === 'string')
+    .map((b) => b.text)
+    .join('');
+  if (!content) throw new Error(`AI 响应为空: ${text.slice(0, 300)}`);
   return content;
 }
 
@@ -312,8 +324,8 @@ function buildVisionContent(text, images) {
   return [
     { type: 'text', text },
     ...validImages.map((url) => ({
-      type: 'image_url',
-      image_url: { url }
+      type: 'image',
+      source: { type: 'url', url }
     }))
   ];
 }
