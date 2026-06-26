@@ -23,7 +23,12 @@
   "modules": {
     "attributes": {
       "name": "类别&属性",
-      "aliases": ["类目&属性", "分类&属性", "商品属性", "产品属性"],
+      "aliases": [
+        "类目&属性",
+        "分类&属性",
+        "商品属性",
+        "产品属性"
+      ],
       "autoNavigate": true
     }
   },

@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(node *)",
-      "WebSearch"
+      "WebSearch",
+      "PowerShell(powershell -NoProfile -ExecutionPolicy Bypass -File \"D:\\\\666\\\\miaoshou-attribute-helper\\\\scripts\\\\build.ps1\")",
+      "PowerShell(node -e \"const p=require\\('./package.json'\\); console.log\\('JSON 合法'\\); console.log\\('author:', p.author\\); console.log\\('build.icon:', p.build.icon\\); console.log\\('signAndEditExecutable:', p.build.win.signAndEditExecutable\\);\")",
+      "Read(//c/Users/EDY/AppData/Local/electron-builder/Cache/winCodeSign/296523759/**)",
+      "Read(//c/Users/EDY/AppData/Local/electron-builder/Cache/winCodeSign/296523759/windows-10/**)"
     ]
   }
 }

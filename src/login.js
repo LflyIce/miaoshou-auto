@@ -15,7 +15,7 @@ async function main() {
 
   await page.goto(config.startUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
   console.log('[登录] 请在打开的浏览器中手动登录妙手ERP。');
-  await waitForEnter('[登录] 登录完成并确认页面可用后，回到终端按回车保存登录态');
+  await waitForEnter('[登录] 登录完成并确认页面可用后，点击继续保存登录态');
 
   await context.storageState({ path: statePath });
   console.log(`[登录] 登录态已保存到 ${statePath}`);

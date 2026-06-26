@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs/promises');
 const { existsSync } = require('fs');
@@ -35,6 +35,8 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  // ① 隐藏 Electron 自带的 File/Edit/View 菜单栏
+  Menu.setApplicationMenu(null);
   await prepareRuntime();
   createWindow();
 });
@@ -96,15 +98,18 @@ ipcMain.handle('app:save-settings', async (_event, settings) => {
 });
 
 ipcMain.handle('task:start', async (_event, taskName) => {
-  if (runningTask) {
-    return { ok: false, error: '已有任务正在运行' };
-  }
   if (!['login', 'fill'].includes(taskName)) {
     return { ok: false, error: `未知任务：${taskName}` };
   }
 
+  // ② 切换任务：若有任务正在运行（含登录后未自动退出的情况），先停止再启动
+  if (runningTask) {
+    send('task:log', { type: 'info', text: '切换任务：先停止当前任务…\n' });
+    await stopRunningTaskAndWait();
+  }
+
   const script = taskName === 'login' ? path.join(CODE_ROOT, 'src', 'login.js') : path.join(CODE_ROOT, 'src', 'main.js');
-  runningTask = fork(script, [], {
+  const task = fork(script, [], {
     cwd: RUNTIME_ROOT,
     silent: true,
     execPath: process.execPath,
@@ -116,18 +121,22 @@ ipcMain.handle('task:start', async (_event, taskName) => {
     }
   });
 
+  runningTask = task;
   send('task:state', { running: true, taskName });
-  send('task:log', { type: 'info', text: `启动任务：${taskName === 'login' ? '登录' : '开始填写'}` });
+  send('task:log', { type: 'info', text: `启动任务：${taskName === 'login' ? '登录' : '开始填写'}\n` });
 
-  runningTask.stdout.on('data', (chunk) => send('task:log', { type: 'stdout', text: chunk.toString() }));
-  runningTask.stderr.on('data', (chunk) => send('task:log', { type: 'stderr', text: chunk.toString() }));
-  runningTask.on('error', (error) => {
+  task.stdout.on('data', (chunk) => send('task:log', { type: 'stdout', text: chunk.toString() }));
+  task.stderr.on('data', (chunk) => send('task:log', { type: 'stderr', text: chunk.toString() }));
+  task.on('error', (error) => {
     send('task:log', { type: 'stderr', text: `${error.stack || error.message}\n` });
   });
-  runningTask.on('exit', (code, signal) => {
+  task.on('exit', (code, signal) => {
     send('task:log', { type: code === 0 ? 'info' : 'stderr', text: `任务结束：code=${code ?? ''} signal=${signal || ''}\n` });
-    runningTask = null;
-    send('task:state', { running: false, taskName: '' });
+    // 仅当退出的仍是当前任务时才重置状态，避免切换任务时旧进程退出把新任务状态覆盖
+    if (runningTask === task) {
+      runningTask = null;
+      send('task:state', { running: false, taskName: '' });
+    }
   });
 
   return { ok: true };
@@ -158,6 +167,71 @@ ipcMain.handle('path:open', async (_event, target) => {
   return error ? { ok: false, error } : { ok: true };
 });
 
+// ③ 填写历史：按日期列出 data/product_export_*.xlsx，并可打开指定日期的记录
+ipcMain.handle('history:list', async () => {
+  if (!existsSync(DATA_DIR)) return { items: [] };
+  const items = [];
+  for (const name of await fs.readdir(DATA_DIR)) {
+    const m = name.match(/^product_export_(\d{8})\.xlsx$/i);
+    if (!m) continue;
+    const full = path.join(DATA_DIR, name);
+    try {
+      const stat = await fs.stat(full);
+      const d = m[1];
+      items.push({
+        fileName: name,
+        date: `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`,
+        sizeKb: Math.round((stat.size / 1024) * 10) / 10,
+        mtime: stat.mtime.toISOString()
+      });
+    } catch (_) {}
+  }
+  // 日期倒序（同日按修改时间倒序）
+  items.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : (a.mtime < b.mtime ? 1 : -1)));
+  return { items };
+});
+
+ipcMain.handle('history:open', async (_event, fileName) => {
+  const file = path.join(DATA_DIR, path.basename(fileName || ''));
+  if (!existsSync(file)) {
+    return { ok: false, error: '填写记录不存在：' + (fileName || '(空)') };
+  }
+  const error = await shell.openPath(file);
+  return error ? { ok: false, error } : { ok: true };
+});
+
+// ④ 登录鉴权：游客直接进入（受限），管理员需账号密码（config/auth.json，缺省 admin/admin）
+const DEFAULT_AUTH = { username: 'admin', password: 'admin' };
+
+async function loadAuth() {
+  const file = path.join(RUNTIME_ROOT, 'config', 'auth.json');
+  if (!existsSync(file)) return { ...DEFAULT_AUTH, configured: false };
+  try {
+    const parsed = JSON.parse(await fs.readFile(file, 'utf8'));
+    const username = String(parsed.username || '').trim();
+    const password = String(parsed.password || '');
+    if (!username || !password) return { ...DEFAULT_AUTH, configured: false };
+    return { username, password, configured: true };
+  } catch (_) {
+    return { ...DEFAULT_AUTH, configured: false };
+  }
+}
+
+ipcMain.handle('auth:status', async () => {
+  const auth = await loadAuth();
+  return { configured: auth.configured };
+});
+
+ipcMain.handle('auth:login', async (_event, creds) => {
+  const auth = await loadAuth();
+  const username = String((creds && creds.username) || '').trim();
+  const password = String((creds && creds.password) || '');
+  if (username === auth.username && password === auth.password) {
+    return { ok: true };
+  }
+  return { ok: false, error: '账号或密码错误' };
+});
+
 function stopRunningTask() {
   if (!runningTask) return false;
   const child = runningTask;
@@ -166,6 +240,18 @@ function stopRunningTask() {
   send('task:state', { running: false, taskName: '' });
   send('task:log', { type: 'info', text: '已请求停止当前任务\n' });
   return true;
+}
+
+// 停止当前任务并等待其退出（最多 1.5s），用于切换任务时清理上一个子进程
+async function stopRunningTaskAndWait() {
+  const child = runningTask;
+  if (!child) return;
+  runningTask = null;
+  try { child.kill(); } catch (_) {}
+  await new Promise((resolve) => {
+    const timer = setTimeout(resolve, 1500);
+    child.once('exit', () => { clearTimeout(timer); resolve(); });
+  });
 }
 
 function send(channel, payload) {

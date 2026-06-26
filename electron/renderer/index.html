@@ -7,7 +7,28 @@
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
-    <div class="app">
+    <div id="loginScreen" class="login-screen">
+      <div class="login-card">
+        <h1>妙手属性助手</h1>
+        <p class="muted">请选择登录方式</p>
+
+        <button id="guestLoginBtn" class="primary block">游客登录</button>
+
+        <div class="login-divider"><span>管理员登录</span></div>
+
+        <label class="field">账号
+          <input id="adminUserInput" type="text" placeholder="admin" autocomplete="off" />
+        </label>
+        <label class="field">密码
+          <input id="adminPassInput" type="password" placeholder="密码" autocomplete="off" />
+        </label>
+        <button id="adminLoginBtn" class="primary block">登录</button>
+        <p class="muted login-hint" id="loginHint"></p>
+        <p class="login-error" id="loginError"></p>
+      </div>
+    </div>
+
+    <div class="app is-hidden">
       <aside class="sidebar">
         <div>
           <h1>妙手属性助手</h1>
@@ -16,7 +37,7 @@
 
         <nav>
           <button class="nav-item active" data-view="run">运行</button>
-          <button class="nav-item" data-view="settings">配置</button>
+          <button class="nav-item guest-hide" data-view="settings">配置</button>
           <button class="nav-item" data-view="files">文件</button>
         </nav>
 
@@ -24,6 +45,7 @@
           <span id="statusDot" class="dot idle"></span>
           <span id="statusText">空闲</span>
         </div>
+        <button id="logoutBtn" class="logout">退出登录</button>
       </aside>
 
       <main>
@@ -94,15 +116,23 @@
         </section>
 
         <section id="filesView" class="view">
-          <div class="file-actions">
+          <div class="file-actions guest-hide">
             <button data-open="data">打开日志目录</button>
             <button data-open="storage">打开知识库目录</button>
             <button data-open="config">打开配置目录</button>
             <button data-open="root">打开项目目录</button>
           </div>
-          <div class="panel">
+          <div class="panel guest-hide">
             <h2>运行文件</h2>
             <p class="muted" id="pathsText"></p>
+          </div>
+          <div class="panel history-panel">
+            <div class="panel-title">
+              <h2>填写历史</h2>
+              <button id="refreshHistoryBtn">刷新</button>
+            </div>
+            <p class="muted" id="historyEmpty" style="display:none">暂无填写历史，运行一次“开始填写”后会按日期生成记录。</p>
+            <ul id="historyList" class="history-list"></ul>
           </div>
         </section>
       </main>

@@ -7,6 +7,10 @@ contextBridge.exposeInMainWorld('miaoshouApp', {
   continueTask: () => ipcRenderer.invoke('task:continue'),
   stopTask: () => ipcRenderer.invoke('task:stop'),
   openPath: (target) => ipcRenderer.invoke('path:open', target),
+  listFillHistory: () => ipcRenderer.invoke('history:list'),
+  openFillHistory: (fileName) => ipcRenderer.invoke('history:open', fileName),
+  authStatus: () => ipcRenderer.invoke('auth:status'),
+  authLogin: (creds) => ipcRenderer.invoke('auth:login', creds),
   onLog: (handler) => {
     ipcRenderer.on('task:log', (_event, payload) => handler(payload));
   },

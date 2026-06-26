@@ -1,6 +1,7 @@
 node_modules/
 .npm-cache/
 .env
+config/auth.json
 data/*.xlsx
 data/screenshots/*.png
 storage/miaoshou_state.json

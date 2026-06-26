@@ -16,6 +16,7 @@
     "openai",
     "attribute"
   ],
+  "author": "玖月",
   "license": "MIT",
   "dependencies": {
     "dotenv": "^16.4.7",
@@ -30,11 +31,13 @@
   "build": {
     "appId": "com.local.miaoshou-attribute-helper",
     "productName": "妙手属性助手",
+    "icon": "build/icon.ico",
     "asar": false,
     "files": [
       "electron/**/*",
       "src/**/*",
       "config/**/*",
+      "!config/auth.json",
       "storage/.gitkeep",
       "package.json"
     ],
@@ -49,7 +52,7 @@
     ],
     "win": {
       "target": "nsis",
-      "signAndEditExecutable": false
+      "signAndEditExecutable": true
     },
     "nsis": {
       "oneClick": false,

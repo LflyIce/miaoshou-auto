@@ -160,7 +160,8 @@ npm run app
 - `scripts.app`: 开发启动桌面端
 - `scripts.dist`: 构建 Windows 安装包
 - `build.asar=false`: 第一版保持文件展开，方便子进程直接运行 `src/*.js`
-- `win.signAndEditExecutable=false`: 第一版不做代码签名，避免构建时下载 `winCodeSign`
+- `build.icon=build/icon.ico`: 应用图标，由 `public/assets/base_logo.png` 生成（多尺寸透明背景 ICO），同时嵌入 exe 与 NSIS 安装包
+- `win.signAndEditExecutable=true`: 让 rcedit 把图标嵌入 exe；本机无签名证书，不会真正签名。⚠️ 开启后会下载解压 `winCodeSign`，其压缩包内含 macOS 符号链接，**非管理员且未开「开发者模式」的 Windows 会解压失败**（`Cannot create symbolic link`）。解决：启用「开发者模式」（设置→隐私和安全→开发者选项），或预先把 `winCodeSign-2.6.0` 解压到 `%LOCALAPPDATA%\electron-builder\Cache\winCodeSign\` 下并补好两个 darwin dylib。
 - `nsis.oneClick=false`: 安装时允许用户选择安装路径
 
 ## 注意事项

@@ -257,3 +257,131 @@ input:focus {
   line-height: 1.8;
   white-space: pre-wrap;
 }
+
+.history-panel {
+  margin-top: 18px;
+}
+
+.history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.history-item .history-date {
+  font-weight: 600;
+  min-width: 110px;
+}
+
+.history-item .history-meta {
+  color: var(--muted);
+  font-size: 13px;
+  flex: 1;
+}
+
+.history-item .history-open {
+  height: 30px;
+  padding: 0 12px;
+}
+
+/* 通用隐藏（用于登录前隐藏主界面） */
+.is-hidden {
+  display: none !important;
+}
+
+/* 登录界面 */
+.login-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+}
+
+.login-card {
+  width: 340px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 28px 24px;
+  display: grid;
+  gap: 14px;
+}
+
+.login-card h1 {
+  font-size: 22px;
+  text-align: center;
+}
+
+.login-card .muted {
+  text-align: center;
+}
+
+.login-card .block {
+  width: 100%;
+  height: 40px;
+}
+
+.login-card .field {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: #394150;
+}
+
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  margin: 4px 0;
+}
+
+.login-divider::before,
+.login-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.login-error {
+  color: var(--danger);
+  font-size: 13px;
+  min-height: 16px;
+  text-align: center;
+  margin: 0;
+}
+
+.login-hint {
+  font-size: 12px;
+  text-align: center;
+}
+
+/* 退出登录 */
+.logout {
+  margin-top: 8px;
+  justify-content: flex-start;
+  text-align: left;
+  color: var(--muted);
+}
+
+/* 游客模式：隐藏带 guest-hide 的受限内容（配置页、文件页里的目录/路径） */
+body.guest-mode .guest-hide {
+  display: none !important;
+}

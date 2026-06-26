@@ -1,6 +1,7 @@
 const state = {
   running: false,
-  taskName: ''
+  taskName: '',
+  role: null
 };
 
 const views = {
@@ -28,7 +29,19 @@ const els = {
   waitForManualPageInput: document.querySelector('#waitForManualPageInput'),
   headlessInput: document.querySelector('#headlessInput'),
   sendImagesInput: document.querySelector('#sendImagesInput'),
-  pathsText: document.querySelector('#pathsText')
+  pathsText: document.querySelector('#pathsText'),
+  historyList: document.querySelector('#historyList'),
+  historyEmpty: document.querySelector('#historyEmpty'),
+  refreshHistoryBtn: document.querySelector('#refreshHistoryBtn'),
+  loginScreen: document.querySelector('#loginScreen'),
+  appEl: document.querySelector('.app'),
+  guestLoginBtn: document.querySelector('#guestLoginBtn'),
+  adminLoginBtn: document.querySelector('#adminLoginBtn'),
+  adminUserInput: document.querySelector('#adminUserInput'),
+  adminPassInput: document.querySelector('#adminPassInput'),
+  loginHint: document.querySelector('#loginHint'),
+  loginError: document.querySelector('#loginError'),
+  logoutBtn: document.querySelector('#logoutBtn')
 };
 
 window.miaoshouApp.onLog((payload) => appendLog(payload.text, payload.type));
@@ -61,6 +74,16 @@ document.querySelectorAll('[data-open]').forEach((button) => {
   });
 });
 
+els.refreshHistoryBtn.addEventListener('click', loadHistory);
+
+// 登录界面
+els.guestLoginBtn.addEventListener('click', () => enterApp('guest'));
+els.adminLoginBtn.addEventListener('click', doAdminLogin);
+els.adminPassInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') doAdminLogin();
+});
+els.logoutBtn.addEventListener('click', logout);
+
 init();
 
 async function init() {
@@ -90,6 +113,7 @@ async function init() {
   ].join('\n');
 
   renderState();
+  await showLoginScreen();
 }
 
 function switchView(name) {
@@ -97,6 +121,60 @@ function switchView(name) {
   document.querySelectorAll('.nav-item').forEach((button) => {
     button.classList.toggle('active', button.dataset.view === name);
   });
+  if (name === 'files') loadHistory();
+}
+
+function enterApp(role) {
+  state.role = role;
+  els.loginScreen.classList.add('is-hidden');
+  els.appEl.classList.remove('is-hidden');
+  // 游客模式：通过 body.guest-mode 隐藏带 guest-hide 的元素（配置页、文件页里的目录/路径）
+  document.body.classList.toggle('guest-mode', role === 'guest');
+  els.adminPassInput.value = '';
+  switchView('run');
+}
+
+async function doAdminLogin() {
+  els.loginError.textContent = '';
+  const username = els.adminUserInput.value.trim();
+  const password = els.adminPassInput.value;
+  if (!username || !password) {
+    els.loginError.textContent = '请输入账号和密码';
+    return;
+  }
+  els.adminLoginBtn.disabled = true;
+  const result = await window.miaoshouApp.authLogin({ username, password });
+  els.adminLoginBtn.disabled = false;
+  if (result.ok) {
+    enterApp('admin');
+  } else {
+    els.loginError.textContent = result.error || '登录失败';
+    els.adminPassInput.focus();
+    els.adminPassInput.select();
+  }
+}
+
+async function showLoginScreen() {
+  els.appEl.classList.add('is-hidden');
+  els.loginScreen.classList.remove('is-hidden');
+  document.body.classList.remove('guest-mode');
+  try {
+    const status = await window.miaoshouApp.authStatus();
+    els.loginHint.textContent = status.configured
+      ? '已配置管理员账号（config/auth.json）'
+      : '默认账号 admin / admin，可在 config/auth.json 中修改';
+  } catch (_) {
+    els.loginHint.textContent = '';
+  }
+  els.adminUserInput.focus();
+}
+
+function logout() {
+  state.role = null;
+  els.adminUserInput.value = '';
+  els.adminPassInput.value = '';
+  els.loginError.textContent = '';
+  showLoginScreen();
 }
 
 async function startTask(taskName) {
@@ -134,10 +212,43 @@ function renderState() {
     ? `运行中：${state.taskName === 'login' ? '登录' : '填写'}`
     : '空闲';
 
-  els.loginBtn.disabled = state.running;
-  els.fillBtn.disabled = state.running;
+  // 每个按钮仅在自己同类任务运行时禁用；这样登录后即可直接点“开始填写”
+  els.loginBtn.disabled = state.taskName === 'login';
+  els.fillBtn.disabled = state.taskName === 'fill';
   els.stopBtn.disabled = !state.running;
   els.continueBtn.disabled = !state.running;
+}
+
+async function loadHistory() {
+  let items = [];
+  try {
+    const result = await window.miaoshouApp.listFillHistory();
+    items = result.items || [];
+  } catch (error) {
+    appendLog(`读取填写历史失败：${error.message}\n`, 'stderr');
+    return;
+  }
+  els.historyList.innerHTML = '';
+  els.historyEmpty.style.display = items.length ? 'none' : 'block';
+  for (const item of items) {
+    const li = document.createElement('li');
+    li.className = 'history-item';
+    const date = document.createElement('span');
+    date.className = 'history-date';
+    date.textContent = item.date;
+    const meta = document.createElement('span');
+    meta.className = 'history-meta';
+    meta.textContent = `${item.sizeKb} KB`;
+    const open = document.createElement('button');
+    open.className = 'history-open';
+    open.textContent = '打开';
+    open.addEventListener('click', async () => {
+      const r = await window.miaoshouApp.openFillHistory(item.fileName);
+      if (!r.ok) appendLog(`${r.error}\n`, 'stderr');
+    });
+    li.append(date, meta, open);
+    els.historyList.appendChild(li);
+  }
 }
 
 function appendLog(text, type = 'stdout') {
