@@ -283,6 +283,7 @@ async function prepareRuntime() {
   ]);
 
   await copyMissingDirFiles(DEFAULT_CONFIG_DIR, path.join(RUNTIME_ROOT, 'config'));
+  await syncBundledDefaults();
   await copyMissingFile(
     path.join(DEFAULT_STORAGE_DIR, 'category_attribute_knowledge.json'),
     path.join(STORAGE_DIR, 'category_attribute_knowledge.json')
@@ -307,6 +308,56 @@ async function copyMissingFile(from, to) {
   if (existsSync(to) || !existsSync(from)) return;
   await fs.mkdir(path.dirname(to), { recursive: true });
   await fs.copyFile(from, to);
+}
+
+// 仅由打包包维护、UI 不会修改的开发者配置键：升级时始终以打包包为准，避免旧值残留
+const DEVELOPER_CONFIG_KEYS = ['startUrl', 'browser', 'thresholds', 'modules', 'knowledgeBase'];
+
+async function syncBundledDefaults() {
+  const bundledPath = path.join(DEFAULT_CONFIG_DIR, 'config.json');
+  if (!existsSync(bundledPath) || !existsSync(CONFIG_PATH)) return;
+
+  let bundled;
+  let current;
+  try {
+    bundled = JSON.parse(await fs.readFile(bundledPath, 'utf8'));
+    current = JSON.parse(await fs.readFile(CONFIG_PATH, 'utf8'));
+  } catch (error) {
+    console.warn(`[配置] 同步默认配置失败: ${error.message}`);
+    return;
+  }
+
+  let changed = false;
+  const ensureAi = () => { if (!current.ai) current.ai = {}; };
+  // ai.baseURL / ai.maxTokens 嵌套在用户可改的 ai 对象里，单独同步这两个开发者字段
+  if (bundled.ai) {
+    if (bundled.ai.baseURL != null && (current.ai || {}).baseURL !== bundled.ai.baseURL) {
+      ensureAi();
+      current.ai.baseURL = bundled.ai.baseURL;
+      changed = true;
+    }
+    if (bundled.ai.maxTokens != null && (current.ai || {}).maxTokens !== bundled.ai.maxTokens) {
+      ensureAi();
+      current.ai.maxTokens = bundled.ai.maxTokens;
+      changed = true;
+    }
+  }
+  // 顶层纯开发者键整体覆盖（UI 从不写入这些键）
+  for (const key of DEVELOPER_CONFIG_KEYS) {
+    if (bundled[key] !== undefined && JSON.stringify(current[key]) !== JSON.stringify(bundled[key])) {
+      current[key] = bundled[key];
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    try {
+      await fs.writeFile(CONFIG_PATH, `${JSON.stringify(current, null, 2)}\n`, 'utf8');
+      console.log('[配置] 已同步打包包内的开发者默认配置（baseURL/thresholds 等）');
+    } catch (error) {
+      console.warn(`[配置] 写入同步后的配置失败: ${error.message}`);
+    }
+  }
 }
 
 async function readEnv(file) {

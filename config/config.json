@@ -11,10 +11,11 @@
     }
   },
   "ai": {
-    "baseURL": "https://open.bigmodel.cn/api/paas/v4/",
+    "baseURL": "https://open.bigmodel.cn/api/anthropic",
     "model": "glm-5.1",
     "apiKeyEnv": "ZAI_API_KEY",
-    "sendImages": false
+    "sendImages": true,
+    "maxTokens": 4096
   },
   "thresholds": {
     "autoSelectScore": 0.85,
