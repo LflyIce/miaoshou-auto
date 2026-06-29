@@ -126,6 +126,18 @@
             <h2>运行文件</h2>
             <p class="muted" id="pathsText"></p>
           </div>
+          <div class="panel search-panel">
+            <div class="panel-title">
+              <h2>商品检索</h2>
+            </div>
+            <div class="search-bar">
+              <input type="text" id="productSearchInput" placeholder="输入日语标题关键字…" autocomplete="off" />
+              <button id="productSearchBtn">查找</button>
+            </div>
+            <p class="muted" id="searchHint">输入关键字后按回车或点击“查找”，从历史导出记录里检索。</p>
+            <p class="muted" id="searchEmpty" style="display:none">没有匹配的商品。</p>
+            <ul id="searchList" class="search-list"></ul>
+          </div>
           <div class="panel history-panel">
             <div class="panel-title">
               <h2>填写历史</h2>

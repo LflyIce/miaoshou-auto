@@ -1,8 +1,9 @@
-const { app, BrowserWindow, ipcMain, shell, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, Menu, clipboard } = require('electron');
 const path = require('path');
 const fs = require('fs/promises');
 const { existsSync } = require('fs');
 const { fork } = require('child_process');
+const ExcelJS = require('exceljs');
 
 const CODE_ROOT = path.resolve(__dirname, '..');
 const DEFAULT_CONFIG_DIR = path.join(CODE_ROOT, 'config');
@@ -16,6 +17,10 @@ let STORAGE_DIR = path.join(RUNTIME_ROOT, 'storage');
 
 let mainWindow = null;
 let runningTask = null;
+
+// 商品检索：按 fileName+mtime 缓存已解析的导出行，避免每次按键都全量解析 xlsx
+const searchCache = new Map();
+const SEARCH_RESULT_CAP = 200;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -177,10 +182,9 @@ ipcMain.handle('history:list', async () => {
     const full = path.join(DATA_DIR, name);
     try {
       const stat = await fs.stat(full);
-      const d = m[1];
       items.push({
         fileName: name,
-        date: `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`,
+        date: dateLabel(m[1]),
         sizeKb: Math.round((stat.size / 1024) * 10) / 10,
         mtime: stat.mtime.toISOString()
       });
@@ -199,6 +203,101 @@ ipcMain.handle('history:open', async (_event, fileName) => {
   const error = await shell.openPath(file);
   return error ? { ok: false, error } : { ok: true };
 });
+
+// 商品检索：在所有 product_export_*.xlsx 的「日语标题」列里按关键字子串匹配
+// 导出列布局（表头第1行）：col2 产品地址 productUrl / col3 日语标题 japaneseTitle /
+// col4 规格 specifications / col5 申报价格 declaredPrice
+ipcMain.handle('history:search', async (_event, query) => {
+  const q = String(query || '').trim().toLowerCase();
+  if (!q || !existsSync(DATA_DIR)) return { items: [] };
+
+  const files = [];
+  for (const name of await fs.readdir(DATA_DIR)) {
+    const m = name.match(/^product_export_(\d{8})\.xlsx$/i);
+    if (!m) continue;
+    const full = path.join(DATA_DIR, name);
+    try {
+      const stat = await fs.stat(full);
+      files.push({
+        full,
+        fileName: name,
+        date: dateLabel(m[1]),
+        key: `${name}::${stat.mtime.toISOString()}`
+      });
+    } catch (_) {}
+  }
+  // 日期倒序，与填写历史一致
+  files.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : (a.key < b.key ? 1 : -1)));
+
+  const matches = [];
+  for (const file of files) {
+    let rows;
+    try {
+      rows = await parseExportRows(file.full, file.fileName, file.date, file.key);
+    } catch (_) {
+      // 文件被占用或损坏时跳过，不影响其它文件的检索
+      continue;
+    }
+    for (const row of rows) {
+      if (row.japaneseTitle.toLowerCase().includes(q)) {
+        matches.push(row);
+        if (matches.length >= SEARCH_RESULT_CAP) return { items: matches };
+      }
+    }
+  }
+  return { items: matches };
+});
+
+// 复制到剪贴板：渲染层是 file:// + contextIsolation，navigator.clipboard 不稳定，统一走主进程
+ipcMain.handle('clipboard:write', async (_event, text) => {
+  clipboard.writeText(String(text || ''));
+  return { ok: true };
+});
+
+// 把 YYYYMMDD 格式化为 YYYY-MM-DD（history:list 与 history:search 共用）
+function dateLabel(d) {
+  return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
+}
+
+// 归一化 ExcelJS 单元格值：null / 原始值 / {richText} / {text} / {result}
+function cellText(value) {
+  if (value == null) return '';
+  if (typeof value === 'string' || typeof value === 'number') return String(value).trim();
+  if (Array.isArray(value.richText)) return value.richText.map((t) => t.text || '').join('').trim();
+  if (value.text != null) return String(value.text).trim();
+  if (value.result != null) return String(value.result).trim();
+  return String(value).trim();
+}
+
+// 解析单个导出文件为行对象数组（按 fileName+mtime 缓存）
+async function parseExportRows(filePath, fileName, date, key) {
+  const cached = searchCache.get(key);
+  if (cached) return cached;
+
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(filePath);
+  const ws = workbook.worksheets[0];
+  const rows = [];
+  if (ws) {
+    const rowCount = ws.rowCount || 0;
+    for (let r = 2; r <= rowCount; r += 1) {
+      const row = ws.getRow(r);
+      const japaneseTitle = cellText(row.getCell(3).value);
+      if (!japaneseTitle) continue; // 跳过空标题行
+      rows.push({
+        fileName,
+        date,
+        japaneseTitle,
+        specifications: cellText(row.getCell(4).value),
+        declaredPrice: cellText(row.getCell(5).value),
+        productUrl: cellText(row.getCell(2).value)
+      });
+    }
+  }
+
+  searchCache.set(key, rows);
+  return rows;
+}
 
 // ④ 登录鉴权：游客直接进入（受限），管理员需账号密码（config/auth.json，缺省 admin/admin）
 const DEFAULT_AUTH = { username: 'admin', password: 'admin' };

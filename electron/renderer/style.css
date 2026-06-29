@@ -296,6 +296,65 @@ input:focus {
   padding: 0 12px;
 }
 
+/* 商品检索 */
+.search-panel {
+  margin-top: 18px;
+}
+
+.search-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.search-bar input[type="text"] {
+  flex: 1;
+}
+
+.search-bar button {
+  flex: 0 0 auto;
+}
+
+.search-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.search-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.search-title {
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.search-meta {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.search-copy {
+  align-self: flex-start;
+  height: 30px;
+  padding: 0 12px;
+  margin-top: 4px;
+}
+
+.search-copy.is-copied {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
 /* 通用隐藏（用于登录前隐藏主界面） */
 .is-hidden {
   display: none !important;

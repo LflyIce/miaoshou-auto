@@ -33,6 +33,11 @@ const els = {
   historyList: document.querySelector('#historyList'),
   historyEmpty: document.querySelector('#historyEmpty'),
   refreshHistoryBtn: document.querySelector('#refreshHistoryBtn'),
+  productSearchInput: document.querySelector('#productSearchInput'),
+  productSearchBtn: document.querySelector('#productSearchBtn'),
+  searchList: document.querySelector('#searchList'),
+  searchEmpty: document.querySelector('#searchEmpty'),
+  searchHint: document.querySelector('#searchHint'),
   loginScreen: document.querySelector('#loginScreen'),
   appEl: document.querySelector('.app'),
   guestLoginBtn: document.querySelector('#guestLoginBtn'),
@@ -75,6 +80,17 @@ document.querySelectorAll('[data-open]').forEach((button) => {
 });
 
 els.refreshHistoryBtn.addEventListener('click', loadHistory);
+
+// 商品检索：点查找 / 回车立即查；输入时 300ms 防抖实时查
+els.productSearchBtn.addEventListener('click', searchProducts);
+els.productSearchInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') searchProducts();
+});
+let searchTimer = null;
+els.productSearchInput.addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(searchProducts, 300);
+});
 
 // 登录界面
 els.guestLoginBtn.addEventListener('click', () => enterApp('guest'));
@@ -160,9 +176,7 @@ async function showLoginScreen() {
   document.body.classList.remove('guest-mode');
   try {
     const status = await window.miaoshouApp.authStatus();
-    els.loginHint.textContent = status.configured
-      ? '已配置管理员账号（config/auth.json）'
-      : '默认账号 admin / admin，可在 config/auth.json 中修改';
+    els.loginHint.textContent = '';
   } catch (_) {
     els.loginHint.textContent = '';
   }
@@ -249,6 +263,73 @@ async function loadHistory() {
     li.append(date, meta, open);
     els.historyList.appendChild(li);
   }
+}
+
+async function searchProducts() {
+  const query = els.productSearchInput.value.trim();
+  els.searchHint.style.display = 'none';
+  if (!query) {
+    els.searchList.innerHTML = '';
+    els.searchEmpty.style.display = 'none';
+    els.searchHint.style.display = 'block';
+    return;
+  }
+
+  els.productSearchBtn.disabled = true;
+  let items = [];
+  try {
+    const result = await window.miaoshouApp.searchFillHistory(query);
+    items = result.items || [];
+  } catch (error) {
+    appendLog(`检索失败：${error.message}\n`, 'stderr');
+    els.productSearchBtn.disabled = false;
+    return;
+  }
+  els.productSearchBtn.disabled = false;
+
+  els.searchList.innerHTML = '';
+  els.searchEmpty.style.display = items.length ? 'none' : 'block';
+  for (const item of items) {
+    els.searchList.appendChild(buildSearchItem(item));
+  }
+}
+
+function buildSearchItem(item) {
+  const li = document.createElement('li');
+  li.className = 'search-item';
+
+  const title = document.createElement('div');
+  title.className = 'search-title';
+  title.textContent = item.japaneseTitle;
+
+  const meta = document.createElement('div');
+  meta.className = 'search-meta';
+  meta.textContent = `日期：${item.date}　规格：${item.specifications || '—'}　申报价：${item.declaredPrice || '—'}`;
+
+  const copy = document.createElement('button');
+  copy.className = 'search-copy';
+  if (item.productUrl) {
+    copy.textContent = '复制产品地址';
+    copy.addEventListener('click', async () => {
+      const r = await window.miaoshouApp.writeClipboard(item.productUrl);
+      if (r && r.ok) {
+        copy.textContent = '已复制';
+        copy.classList.add('is-copied');
+        window.setTimeout(() => {
+          copy.textContent = '复制产品地址';
+          copy.classList.remove('is-copied');
+        }, 1500);
+      } else {
+        appendLog('复制产品地址失败\n', 'stderr');
+      }
+    });
+  } else {
+    copy.textContent = '无地址';
+    copy.disabled = true;
+  }
+
+  li.append(title, meta, copy);
+  return li;
 }
 
 function appendLog(text, type = 'stdout') {

@@ -54,6 +54,7 @@ function loadConfig() {
     browser: {
       channel: 'msedge',
       executablePath: '',
+      maximize: true,
       viewport: {
         width: 1920,
         height: 1080
@@ -88,13 +89,21 @@ function loadConfig() {
 }
 
 function getBrowserLaunchOptions(config) {
-  const viewport = getBrowserViewport(config);
+  const headless = Boolean(config.headless);
+  const maximize = config && config.browser ? config.browser.maximize !== false : true;
+  // 有头模式：最大化铺满屏幕，避免低分辨率机器上 1920×1080 窗口被裁出可视区
+  // 无头模式 / 关闭最大化：没有真实窗口可最大化，按固定尺寸渲染
+  let args;
+  if (!headless && maximize) {
+    args = ['--start-maximized'];
+  } else {
+    const viewport = getBrowserViewport(config);
+    args = [`--window-size=${viewport.width},${viewport.height}`];
+  }
+
   const options = {
-    headless: Boolean(config.headless),
-    args: [
-      `--window-size=${viewport.width},${viewport.height}`,
-      '--window-position=0,0'
-    ]
+    headless,
+    args
   };
 
   if (config.browser && config.browser.executablePath) {
@@ -113,6 +122,12 @@ function getBrowserViewport(config) {
 }
 
 function getBrowserContextOptions(config, extra = {}) {
+  const headless = Boolean(config.headless);
+  const maximize = config && config.browser ? config.browser.maximize !== false : true;
+  // 有头且开启最大化：页面视口跟随真实（已最大化）窗口；无头/关闭最大化则用固定视口
+  if (!headless && maximize) {
+    return { viewport: null, ...extra };
+  }
   const viewport = getBrowserViewport(config);
   return {
     viewport,
