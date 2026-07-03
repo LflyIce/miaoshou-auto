@@ -52,6 +52,8 @@ automation core (src/*.js)           ←→  Playwright → local Edge → 妙�
 
 **Two roots, not one.** `src/utils.js` resolves all paths through `DATA_ROOT`, which is either `PROJECT_ROOT` (CLI / dev) or the value of `MIAOSHOU_DATA_ROOT` env var (set by Electron for the packaged app's `userData` dir). `electron/main.js` `prepareRuntime()` copies default `config/` and the knowledge base into the runtime root on first launch, and `syncBundledDefaults()` force-overwrites developer-only config keys (`startUrl`, `browser`, `thresholds`, `modules`, `knowledgeBase`, plus `ai.baseURL`/`ai.maxTokens`) from the bundled defaults on every start — so user-edited values in those keys do **not** survive an app upgrade by design. Only `ai.model`, `ai.sendImages`, `productEditUrl`, `headless`, `behavior.saveAfterFill`, `behavior.waitForManualPage`, `batch.maxProducts` are UI-writable/preserved.
 
+**Two different logins — don't confuse them.** `npm run login` persists the **Playwright** session for 妙手 ERP to `storage/miaoshou_state.json` (never committed). Separately, the **Electron desktop UI** has its own gate: `config/auth.json` (gitignored, defaults `admin`/`admin`, read by `loadAuth` and checked by the `auth:login` IPC handler). Guests can still enter the app in a limited mode.
+
 ## The per-product pipeline (`src/main.js` → `processCurrentProduct`)
 
 Five logged phases per product, run in a loop (`maxProducts`, 0 = unlimited):
@@ -83,6 +85,8 @@ The README and `docs/PROJECT.md` describe the AI as "OpenAI-compatible," but **t
 
 All four AI calls (`analyzeAttributes`, `secondChoice`, `rewriteProductTitles`, `analyzeSaveError`) go through `postChatCompletion` + `extractJSON` (strips ```json fences, extracts the outermost `{...}`), and each degrades gracefully: image-bearing requests retry text-only on failure. Vision content caps at 3 images. System prompts live in `config/prompt_templates.json` (`attributeAnalysisSystem`, `secondChoiceSystem`); title-rewrite prompts are hardcoded defaults in `ai_analyzer.js`.
 
+The API key is **not** in `config.json` — that file only stores the env-var *name* (`ai.apiKeyEnv`, default `ZAI_API_KEY`). The key itself lives in `.env`, loaded via `dotenv` at the top of `src/main.js`. The Electron app persists it back to `.env` through the `app:save-settings` IPC handler (`env.ZAI_API_KEY = ...`); `prepareRuntime()` seeds an empty `.env` on first launch.
+
 ## Knowledge base (`src/category_knowledge.js`)
 
 `storage/category_attribute_knowledge.json` (committed, grows with use) caches per-category attribute history. On a known category, fields with reliable historical values are reused directly via `buildKnowledgeDecisions` — but the reused value is **re-matched against current page options**, never trusted blindly. Confidence caps at `min(0.96, 0.78 + min(count,6)·0.03)`. `maxSamplesPerAttribute`/`maxTitlesPerCategory` bound growth.
@@ -92,7 +96,7 @@ All four AI calls (`analyzeAttributes`, `secondChoice`, `rewriteProductTitles`, 
 - **New control type**: (1) detect in `attribute_scanner.js` `detectControlType`, (2) add a `fillAttribute` branch in `filler.js` with read-back verification, (3) add a final-decision branch in `main.js` `decideFinalValue`, (4) add a knowledge-reuse branch in `main.js` `decideFromKnowledge`.
 - **New AI capability**: add a function in `ai_analyzer.js` reusing `postChatCompletion` + `extractJSON` + image-fallback; put prompts in `prompt_templates.json`.
 - **New UI config option**: add the control in `renderer/index.html`, wire it in `renderer/app.js` (`els`/`init`/`saveSettings`), and deep-merge it in `electron/main.js` `app:save-settings`. Keys not added to the save handler won't persist.
-- **Broken page selectors** (妙手 DOM changed): extend `modules.attributes.aliases` in config, or the selector lists / scoring in `attribute_scanner.js`. Note `OPTION_SELECTORS` is duplicated in both `attribute_scanner.js` and `filler.js` — update both.
+- **Broken page selectors** (妙手 DOM changed): extend `modules.attributes.aliases` in config, or the selector lists / scoring in `attribute_scanner.js`. Note `OPTION_SELECTORS` is duplicated across `attribute_scanner.js`, `filler.js`, **and** `sku_filler.js` — update all three.
 
 ## Output artifacts (gitignored)
 

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, Menu, clipboard } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, Menu, clipboard, net } = require('electron');
 const path = require('path');
 const fs = require('fs/promises');
 const { existsSync } = require('fs');
@@ -17,6 +17,8 @@ let STORAGE_DIR = path.join(RUNTIME_ROOT, 'storage');
 
 let mainWindow = null;
 let runningTask = null;
+// 升级检查结果缓存：{ version, url, notes }，无新版时为 null
+let updateInfo = null;
 
 // 商品检索：按 fileName+mtime 缓存已解析的导出行，避免每次按键都全量解析 xlsx
 const searchCache = new Map();
@@ -44,6 +46,11 @@ app.whenReady().then(async () => {
   Menu.setApplicationMenu(null);
   await prepareRuntime();
   createWindow();
+  // 启动后异步检查更新（不阻塞窗口），并按配置周期复查
+  checkForUpdate();
+  const updateCfg = (await readJSON(CONFIG_PATH, {})).update || {};
+  const intervalMs = Number(updateCfg.checkIntervalMs) || 0;
+  if (intervalMs > 0) setInterval(checkForUpdate, intervalMs);
 });
 
 app.on('window-all-closed', () => {
@@ -61,6 +68,7 @@ ipcMain.handle('app:load-settings', async () => {
   return {
     config,
     apiKey: env.ZAI_API_KEY || '',
+    version: app.getVersion(),
     paths: {
       root: RUNTIME_ROOT,
       codeRoot: CODE_ROOT,
@@ -254,6 +262,20 @@ ipcMain.handle('clipboard:write', async (_event, text) => {
   return { ok: true };
 });
 
+// ⑤ 升级提示：渲染层启动时主动拉一次缓存结果（避免错过 ready 之后才完成的检查）
+ipcMain.handle('update:status', () => updateInfo);
+
+// 点「立即下载」：用默认浏览器打开清单里的下载地址
+ipcMain.handle('update:open-download', async () => {
+  if (!updateInfo || !updateInfo.url) return { ok: false, error: '没有可用的下载地址' };
+  try {
+    await shell.openExternal(updateInfo.url);
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+});
+
 // 把 YYYYMMDD 格式化为 YYYY-MM-DD（history:list 与 history:search 共用）
 function dateLabel(d) {
   return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
@@ -367,6 +389,71 @@ async function readJSON(file, fallback) {
   }
 }
 
+// 版本比较：按 "." 分段数值比较，返回 -1/0/1。仅支持 "1.2.3" 这类纯数字段
+function compareVersions(a, b) {
+  const pa = String(a || '').split('.');
+  const pb = String(b || '').split('.');
+  const len = Math.max(pa.length, pb.length);
+  for (let i = 0; i < len; i += 1) {
+    const na = parseInt(pa[i], 10) || 0;
+    const nb = parseInt(pb[i], 10) || 0;
+    if (na !== nb) return na < nb ? -1 : 1;
+  }
+  return 0;
+}
+
+// 拉取服务器上的版本清单，发现新版则缓存并通知渲染层。任何异常都静默忽略，绝不弹错给用户
+async function checkForUpdate() {
+  const updateCfg = (await readJSON(CONFIG_PATH, {})).update || {};
+  const manifestUrl = String(updateCfg.manifestUrl || '').trim();
+  if (!manifestUrl) return;
+
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(manifestUrl);
+  } catch (_) {
+    console.warn(`[升级] 清单地址非法，跳过检查：${manifestUrl}`);
+    return;
+  }
+  if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+    console.warn(`[升级] 仅支持 http/https 清单地址，跳过：${manifestUrl}`);
+    return;
+  }
+
+  let remote;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    const resp = await net.fetch(manifestUrl, {
+      signal: controller.signal,
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache' }
+    });
+    clearTimeout(timer);
+    if (!resp.ok) {
+      console.warn(`[升级] 清单请求失败：HTTP ${resp.status}`);
+      return;
+    }
+    remote = await resp.json();
+  } catch (error) {
+    console.warn(`[升级] 检查更新出错（已忽略）：${error.message || error}`);
+    return;
+  }
+
+  const version = String(remote.version || '').trim();
+  const url = String(remote.url || '').trim();
+  const notes = String(remote.notes || '').trim();
+  if (!version || !url) {
+    console.warn('[升级] 清单缺少 version 或 url，跳过');
+    return;
+  }
+  if (compareVersions(version, app.getVersion()) > 0) {
+    updateInfo = { version, url, notes };
+    send('update:available', updateInfo);
+    console.log(`[升级] 发现新版本 ${version}（当前 ${app.getVersion()}）`);
+  }
+}
+
 async function prepareRuntime() {
   RUNTIME_ROOT = app.isPackaged ? app.getPath('userData') : CODE_ROOT;
   CONFIG_PATH = path.join(RUNTIME_ROOT, 'config', 'config.json');
@@ -410,7 +497,7 @@ async function copyMissingFile(from, to) {
 }
 
 // 仅由打包包维护、UI 不会修改的开发者配置键：升级时始终以打包包为准，避免旧值残留
-const DEVELOPER_CONFIG_KEYS = ['startUrl', 'browser', 'thresholds', 'modules', 'knowledgeBase'];
+const DEVELOPER_CONFIG_KEYS = ['startUrl', 'browser', 'thresholds', 'modules', 'knowledgeBase', 'update'];
 
 async function syncBundledDefaults() {
   const bundledPath = path.join(DEFAULT_CONFIG_DIR, 'config.json');

@@ -46,10 +46,16 @@ const els = {
   adminPassInput: document.querySelector('#adminPassInput'),
   loginHint: document.querySelector('#loginHint'),
   loginError: document.querySelector('#loginError'),
-  logoutBtn: document.querySelector('#logoutBtn')
+  logoutBtn: document.querySelector('#logoutBtn'),
+  updateBanner: document.querySelector('#updateBanner'),
+  updateBannerText: document.querySelector('#updateBannerText'),
+  updateDownloadBtn: document.querySelector('#updateDownloadBtn'),
+  updateDismissBtn: document.querySelector('#updateDismissBtn'),
+  versionText: document.querySelector('#versionText')
 };
 
 window.miaoshouApp.onLog((payload) => appendLog(payload.text, payload.type));
+window.miaoshouApp.onUpdateAvailable((info) => renderUpdateBanner(info));
 window.miaoshouApp.onTaskState((payload) => {
   state.running = Boolean(payload.running);
   state.taskName = payload.taskName || '';
@@ -99,6 +105,8 @@ els.adminPassInput.addEventListener('keydown', (event) => {
   if (event.key === 'Enter') doAdminLogin();
 });
 els.logoutBtn.addEventListener('click', logout);
+els.updateDownloadBtn.addEventListener('click', downloadUpdate);
+els.updateDismissBtn.addEventListener('click', () => els.updateBanner.classList.add('is-hidden'));
 
 init();
 
@@ -128,7 +136,9 @@ async function init() {
     `知识库目录：${paths.storage || ''}`
   ].join('\n');
 
+  els.versionText.textContent = data.version ? `v${data.version}` : '';
   renderState();
+  renderUpdateBanner(await window.miaoshouApp.getUpdateStatus());
   await showLoginScreen();
 }
 
@@ -330,6 +340,20 @@ function buildSearchItem(item) {
 
   li.append(title, meta, copy);
   return li;
+}
+
+function renderUpdateBanner(info) {
+  if (!info || !info.version) {
+    els.updateBanner.classList.add('is-hidden');
+    return;
+  }
+  els.updateBannerText.textContent = `发现新版本 v${info.version}${info.notes ? '　' + info.notes : ''}`;
+  els.updateBanner.classList.remove('is-hidden');
+}
+
+async function downloadUpdate() {
+  const result = await window.miaoshouApp.openDownloadUrl();
+  if (!result.ok) appendLog(`${result.error || '打开下载页失败'}\n`, 'stderr');
 }
 
 function appendLog(text, type = 'stdout') {

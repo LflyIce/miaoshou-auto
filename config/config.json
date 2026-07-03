@@ -55,5 +55,9 @@
     "nextProductWaitMs": 4000,
     "saveButtonSelectors": [],
     "nextProductSelectors": []
+  },
+  "update": {
+    "manifestUrl": "",
+    "checkIntervalMs": 3600000
   }
 }

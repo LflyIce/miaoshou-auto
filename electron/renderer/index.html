@@ -32,7 +32,7 @@
       <aside class="sidebar">
         <div>
           <h1>妙手属性助手</h1>
-          <p class="muted">本地自动填写工作台</p>
+          <p class="muted">本地自动填写工作台 <span id="versionText"></span></p>
         </div>
 
         <nav>
@@ -49,6 +49,11 @@
       </aside>
 
       <main>
+        <div id="updateBanner" class="update-banner is-hidden">
+          <span class="update-banner-text" id="updateBannerText"></span>
+          <button id="updateDownloadBtn" class="primary">立即下载</button>
+          <button id="updateDismissBtn" class="update-banner-dismiss" title="本次忽略">×</button>
+        </div>
         <section id="runView" class="view active">
           <div class="toolbar">
             <button id="loginBtn" class="primary">登录妙手</button>

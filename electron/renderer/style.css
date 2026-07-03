@@ -355,6 +355,43 @@ input:focus {
   color: var(--primary);
 }
 
+/* 升级提示横幅：复用 nav-item.active 的配色 */
+.update-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 10px 14px;
+  border: 1px solid #b8d8d2;
+  border-radius: 8px;
+  background: #e9f5f2;
+  color: var(--primary);
+  font-size: 13px;
+}
+
+.update-banner .update-banner-text {
+  flex: 1;
+  word-break: break-word;
+}
+
+.update-banner .primary {
+  flex: 0 0 auto;
+}
+
+.update-banner .update-banner-dismiss {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  line-height: 1;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+
+.update-banner .update-banner-dismiss:hover {
+  color: var(--text);
+}
+
 /* 通用隐藏（用于登录前隐藏主界面） */
 .is-hidden {
   display: none !important;
