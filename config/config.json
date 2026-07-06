@@ -57,8 +57,7 @@
     "nextProductSelectors": []
   },
   "update": {
-    "manifestUrl": "https://miaoshou-1308104144.cos.ap-guangzhou.myqcloud.com/manifest.json",
-    "checkIntervalMs": 3600000
+    "manifestUrl": "https://miaoshou-1308104144.cos.ap-guangzhou.myqcloud.com/manifest.json"
   },
   "temu": {
     "loginUrl": "https://seller.kuajingmaihuo.com/settle/site-main",

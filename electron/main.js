@@ -46,11 +46,8 @@ app.whenReady().then(async () => {
   Menu.setApplicationMenu(null);
   await prepareRuntime();
   createWindow();
-  // 启动后异步检查更新（不阻塞窗口），并按配置周期复查
+  // 仅启动时检查一次更新（内部工具不需要周期复查，减少不必要的后台请求）
   checkForUpdate();
-  const updateCfg = (await readJSON(CONFIG_PATH, {})).update || {};
-  const intervalMs = Number(updateCfg.checkIntervalMs) || 0;
-  if (intervalMs > 0) setInterval(checkForUpdate, intervalMs);
 });
 
 app.on('window-all-closed', () => {
