@@ -97,6 +97,10 @@ ipcMain.handle('app:save-settings', async (_event, settings) => {
     },
     batch: {
       maxProducts: Number(settings.maxProducts || 0)
+    },
+    temu: {
+      multiplier: Number(settings.temuMultiplier || 2),
+      priceCheckUrl: String(settings.temuPriceCheckUrl || '').trim()
     }
   });
 
@@ -111,7 +115,7 @@ ipcMain.handle('app:save-settings', async (_event, settings) => {
 });
 
 ipcMain.handle('task:start', async (_event, taskName) => {
-  if (!['login', 'fill'].includes(taskName)) {
+  if (!['login', 'fill', 'temu-login', 'temu-price'].includes(taskName)) {
     return { ok: false, error: `未知任务：${taskName}` };
   }
 
@@ -121,7 +125,13 @@ ipcMain.handle('task:start', async (_event, taskName) => {
     await stopRunningTaskAndWait();
   }
 
-  const script = taskName === 'login' ? path.join(CODE_ROOT, 'src', 'login.js') : path.join(CODE_ROOT, 'src', 'main.js');
+  const scriptMap = {
+    'login': ['src', 'login.js'],
+    'fill': ['src', 'main.js'],
+    'temu-login': ['src', 'temu', 'login_temu.js'],
+    'temu-price': ['src', 'temu', 'price_check.js']
+  };
+  const script = path.join(CODE_ROOT, ...scriptMap[taskName]);
   const task = fork(script, [], {
     cwd: RUNTIME_ROOT,
     silent: true,
@@ -136,7 +146,8 @@ ipcMain.handle('task:start', async (_event, taskName) => {
 
   runningTask = task;
   send('task:state', { running: true, taskName });
-  send('task:log', { type: 'info', text: `启动任务：${taskName === 'login' ? '登录' : '开始填写'}\n` });
+  const taskLabelMap = { 'login': '登录', 'fill': '开始填写', 'temu-login': '登录Temu', 'temu-price': 'Temu核价' };
+  send('task:log', { type: 'info', text: `启动任务：${taskLabelMap[taskName] || taskName}\n` });
 
   task.stdout.on('data', (chunk) => send('task:log', { type: 'stdout', text: chunk.toString() }));
   task.stderr.on('data', (chunk) => send('task:log', { type: 'stderr', text: chunk.toString() }));

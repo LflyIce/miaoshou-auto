@@ -82,6 +82,12 @@ function loadConfig() {
       nextProductWaitMs: 4000,
       saveButtonSelectors: [],
       nextProductSelectors: []
+    },
+    temu: {
+      loginUrl: 'https://seller.kuajingmaihuo.com/settle/site-main',
+      priceCheckUrl: '',
+      multiplier: 2,
+      diffThreshold: 10
     }
   };
   const userConfig = readJSONSync(resolveRoot('config', 'config.json'), {});
@@ -94,11 +100,14 @@ function getBrowserLaunchOptions(config) {
   // 有头模式：最大化铺满屏幕，避免低分辨率机器上 1920×1080 窗口被裁出可视区
   // 无头模式 / 关闭最大化：没有真实窗口可最大化，按固定尺寸渲染
   let args;
+  // --disable-blink-features=AutomationControlled：去掉 Chromium 自动化标志，
+  // 避免 navigator.webdriver=true 被 Temu 等平台的风控识别
+  const antiDetection = ['--disable-blink-features=AutomationControlled'];
   if (!headless && maximize) {
-    args = ['--start-maximized'];
+    args = ['--start-maximized', ...antiDetection];
   } else {
     const viewport = getBrowserViewport(config);
-    args = [`--window-size=${viewport.width},${viewport.height}`];
+    args = [`--window-size=${viewport.width},${viewport.height}`, ...antiDetection];
   }
 
   const options = {
@@ -134,6 +143,13 @@ function getBrowserContextOptions(config, extra = {}) {
     screen: viewport,
     ...extra
   };
+}
+
+// 反自动化检测：隐藏 navigator.webdriver，配合 --disable-blink-features=AutomationControlled 使用
+async function applyAntiDetection(context) {
+  await context.addInitScript(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+  });
 }
 
 function mergeDeep(target, source) {
@@ -234,6 +250,7 @@ module.exports = {
   loadConfig,
   getBrowserLaunchOptions,
   getBrowserContextOptions,
+  applyAntiDetection,
   waitForEnter,
   sleep,
   unique,

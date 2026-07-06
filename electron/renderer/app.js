@@ -16,6 +16,10 @@ const els = {
   logOutput: document.querySelector('#logOutput'),
   loginBtn: document.querySelector('#loginBtn'),
   fillBtn: document.querySelector('#fillBtn'),
+  temuLoginBtn: document.querySelector('#temuLoginBtn'),
+  temuBtn: document.querySelector('#temuBtn'),
+  temuMultiplierInput: document.querySelector('#temuMultiplierInput'),
+  temuPriceCheckUrlInput: document.querySelector('#temuPriceCheckUrlInput'),
   continueBtn: document.querySelector('#continueBtn'),
   stopBtn: document.querySelector('#stopBtn'),
   clearLogBtn: document.querySelector('#clearLogBtn'),
@@ -68,6 +72,8 @@ document.querySelectorAll('.nav-item').forEach((button) => {
 
 els.loginBtn.addEventListener('click', () => startTask('login'));
 els.fillBtn.addEventListener('click', () => startTask('fill'));
+els.temuLoginBtn.addEventListener('click', () => startTask('temu-login'));
+els.temuBtn.addEventListener('click', () => startTask('temu-price'));
 els.continueBtn.addEventListener('click', async () => {
   const result = await window.miaoshouApp.continueTask();
   if (!result.ok) appendLog(`${result.error}\n`, 'stderr');
@@ -125,6 +131,9 @@ async function init() {
   els.waitForManualPageInput.checked = behavior.waitForManualPage !== false;
   els.headlessInput.checked = Boolean(config.headless);
   els.sendImagesInput.checked = Boolean(ai.sendImages);
+  const temu = config.temu || {};
+  els.temuMultiplierInput.value = Number(temu.multiplier) || 2;
+  els.temuPriceCheckUrlInput.value = temu.priceCheckUrl || '';
 
   const paths = data.paths || {};
   els.pathsText.textContent = [
@@ -216,7 +225,9 @@ async function saveSettings(options = {}) {
     saveAfterFill: els.saveAfterFillInput.checked,
     waitForManualPage: els.waitForManualPageInput.checked,
     headless: els.headlessInput.checked,
-    sendImages: els.sendImagesInput.checked
+    sendImages: els.sendImagesInput.checked,
+    temuMultiplier: Number(els.temuMultiplierInput.value || 2),
+    temuPriceCheckUrl: String(els.temuPriceCheckUrlInput.value || '').trim()
   };
 
   const result = await window.miaoshouApp.saveSettings(settings);
@@ -232,13 +243,16 @@ async function saveSettings(options = {}) {
 function renderState() {
   els.statusDot.classList.toggle('running', state.running);
   els.statusDot.classList.toggle('idle', !state.running);
+  const labelMap = { 'login': '登录', 'fill': '填写', 'temu-login': '登录Temu', 'temu-price': 'Temu核价' };
   els.statusText.textContent = state.running
-    ? `运行中：${state.taskName === 'login' ? '登录' : '填写'}`
+    ? `运行中：${labelMap[state.taskName] || state.taskName}`
     : '空闲';
 
   // 每个按钮仅在自己同类任务运行时禁用；这样登录后即可直接点“开始填写”
   els.loginBtn.disabled = state.taskName === 'login';
   els.fillBtn.disabled = state.taskName === 'fill';
+  els.temuLoginBtn.disabled = state.taskName === 'temu-login';
+  els.temuBtn.disabled = state.taskName === 'temu-price';
   els.stopBtn.disabled = !state.running;
   els.continueBtn.disabled = !state.running;
 }

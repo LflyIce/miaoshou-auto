@@ -58,6 +58,12 @@
           <div class="toolbar">
             <button id="loginBtn" class="primary">登录妙手</button>
             <button id="fillBtn" class="primary">开始填写</button>
+            <span class="toolbar-divider"></span>
+            <button id="temuLoginBtn">登录Temu</button>
+            <label class="inline-field">倍数
+              <input id="temuMultiplierInput" type="number" min="1" step="0.1" value="2" />
+            </label>
+            <button id="temuBtn" class="primary">Temu核价</button>
             <button id="continueBtn">继续</button>
             <button id="stopBtn" class="danger">停止</button>
           </div>
@@ -86,6 +92,11 @@
             <label>
               商品编辑页 URL
               <input id="productEditUrlInput" type="text" placeholder="留空则打开首页后手动进入编辑页" />
+            </label>
+
+            <label>
+              Temu 核价页 URL
+              <input id="temuPriceCheckUrlInput" type="text" placeholder="Temu 商家后台核价列表页地址" />
             </label>
 
             <label>
