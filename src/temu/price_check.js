@@ -62,6 +62,16 @@ async function scrollMainTableBy(page) {
   });
 }
 
+// 原生点击：dispatchEvent 触发 click，绕过 drawer footer / 主表分页的遮挡与视口检查。
+// 注意：data-testid="beast-core-icon-close" 命中的常是 <svg>/<i> 图标节点（SVGElement，
+// 不继承 HTMLElement，没有 .click() 方法）——必须用 dispatchEvent，否则会抛
+// "el.click is not a function"。事件冒泡到外层 button，由 React onClick 接管。
+async function nativeClick(locator) {
+  await locator.evaluate((el) => {
+    el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+  });
+}
+
 // 操作 Temu 自定义 select：点 header 展开下拉 → 点匹配文本的选项
 async function selectTemuOption(page, selectRoot, optionText) {
   await selectRoot.locator('[data-testid="beast-core-select-header"]').first().click();
@@ -139,21 +149,40 @@ async function processOneSkc(page, skcKey, { multiplier, threshold }) {
     }
 
     // 4. 点「全部提交」。不需要先点表头全选——改过操作下拉的行会自动纳入提交，
-    //    手动点全选反而会干扰默认选中状态（实测：点完全部提交后 drawer 会自动关闭）
+    //    手动点全选反而会干扰默认选中状态。
     const submitBtn = drawer.locator('button').filter({ hasText: '全部提交' }).first();
-    // 用原生 click（evaluate）而非 Playwright 鼠标 click：drawer footer 常在视口外，
+    // 用原生 click（nativeClick）而非 Playwright 鼠标 click：drawer footer 常在视口外，
     // 且会被主表分页 / drawer 自身 footer 遮挡，鼠标 click 会因 hit test 失败而 timeout；
-    // 原生 .click() 直接触发组件 onClick，绕过遮挡与视口检查
-    await submitBtn.evaluate((b) => b.click());
+    // dispatchEvent 直接触发组件 onClick，绕过遮挡与视口检查
+    await nativeClick(submitBtn);
     log('已点击「全部提交」');
 
-    // 5. 等 drawer 自动关闭。先等 8s 自动关；超时则用原生 click 关闭图标兜底。
+    // 5. 「全部提交」会弹二次确认气泡（warning 图标 +「确认提交N项」+ 确认/取消），
+    //    必须再点一次「确认」才真正提交、drawer 才会自动关闭。
+    //    定位策略：用 warning 图标锚定气泡，向上找到含 button 的最近祖先（气泡容器），
+    //    再在其中按文本「确认」取按钮——避免与主表/drawer 其它"确认"混淆。
+    try {
+      const warnIcon = page.locator('[data-testid="beast-core-icon-warning-circle_filled"]').first();
+      await warnIcon.waitFor({ state: 'visible', timeout: 5000 });
+      const confirmBtn = warnIcon
+        .locator('xpath=ancestor::*[.//button[@data-testid="beast-core-button"]][1]')
+        .locator('button[data-testid="beast-core-button"]')
+        .filter({ hasText: '确认' })
+        .first();
+      await nativeClick(confirmBtn);
+      await page.waitForTimeout(300);
+      log('已点击二次确认「确认」');
+    } catch (e3) {
+      // 未弹出确认气泡（如无可提交项 / Temu 改版），忽略，直接进入关 drawer 流程
+    }
+
+    // 6. 等 drawer 自动关闭。先等 8s 自动关；超时则用原生 click 关闭图标兜底。
     try {
       await page.waitForSelector('[data-testid="bgb-pc-show-drawer-body"]', { state: 'detached', timeout: 8000 });
       log('drawer 已自动关闭');
     } catch (_) {
       try {
-        await drawer.locator('[data-testid="beast-core-icon-close"]').first().evaluate((el) => el.click());
+        await nativeClick(drawer.locator('[data-testid="beast-core-icon-close"]').first());
         await page.waitForTimeout(500);
         log('drawer 未自动关闭，已手动关闭');
       } catch (e2) {
@@ -164,7 +193,7 @@ async function processOneSkc(page, skcKey, { multiplier, threshold }) {
     console.error(`[Temu核价] ${skcKey} 处理出错：${err.message || err}`);
     // 出错时尝试关闭 drawer，避免卡住后续 SKC（同样用原生 click 绕过遮挡）
     try {
-      await drawer.locator('[data-testid="beast-core-icon-close"]').first().evaluate((el) => el.click());
+      await nativeClick(drawer.locator('[data-testid="beast-core-icon-close"]').first());
       await page.waitForTimeout(500);
     } catch (_) { /* 忽略 */ }
   }

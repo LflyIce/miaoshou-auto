@@ -2,90 +2,90 @@
   "cookies": [
     {
       "name": "api_uid",
-      "value": "CmRiKmpLaU5EgbUXeQnuAg==",
+      "value": "CmdhkGpMVHcQ/6wkI7GTAg==",
       "domain": ".kuajingmaihuo.com",
       "path": "/",
-      "expires": 1814863054.882122,
+      "expires": 1814923255.315706,
       "httpOnly": false,
       "secure": true,
       "sameSite": "Lax"
     },
     {
       "name": "_nano_fp",
-      "value": "XpmJXqXxnq9ynpd8nT_xJWWK9pxIwnMfqxkAcR4l",
+      "value": "XpmJXqXJnqPynpTbXT_GXd2Zq~zL7nNpkU2ri1eA",
       "domain": "seller.kuajingmaihuo.com",
       "path": "/",
-      "expires": 1814863055,
+      "expires": 1814923255,
       "httpOnly": false,
       "secure": true,
       "sameSite": "Lax"
     },
     {
       "name": "_bee",
-      "value": "eKEfrPog4mfKJXMphGvUsHb6nK0J0amV",
+      "value": "F3B2Asn4xSPawEjtNSrHPfptPhVagam3",
       "domain": ".kuajingmaihuo.com",
       "path": "/",
-      "expires": 1814863077.283891,
+      "expires": 1814923293.493695,
       "httpOnly": true,
       "secure": true,
       "sameSite": "None"
     },
     {
       "name": "_f77",
-      "value": "66ab0c78-01da-47ff-8c02-a15e2956f3ec",
+      "value": "4d4c5b84-8aaa-4fa5-9862-11a6b0bc8992",
       "domain": ".kuajingmaihuo.com",
       "path": "/",
-      "expires": 1814863077.28406,
+      "expires": 1814923293.49382,
       "httpOnly": true,
       "secure": true,
       "sameSite": "None"
     },
     {
       "name": "_a42",
-      "value": "11da09df-8a74-4765-8c6d-71410c9ee5b8",
+      "value": "42f29671-6406-4d50-afc4-4bebaaf74d00",
       "domain": ".kuajingmaihuo.com",
       "path": "/",
-      "expires": 1814863077.284108,
+      "expires": 1814923293.493876,
       "httpOnly": true,
       "secure": true,
       "sameSite": "None"
     },
     {
       "name": "rckk",
-      "value": "eKEfrPog4mfKJXMphGvUsHb6nK0J0amV",
+      "value": "F3B2Asn4xSPawEjtNSrHPfptPhVagam3",
       "domain": ".kuajingmaihuo.com",
       "path": "/",
-      "expires": 1814863077.284151,
+      "expires": 1814923293.493928,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
     },
     {
       "name": "ru1k",
-      "value": "66ab0c78-01da-47ff-8c02-a15e2956f3ec",
+      "value": "4d4c5b84-8aaa-4fa5-9862-11a6b0bc8992",
       "domain": ".kuajingmaihuo.com",
       "path": "/",
-      "expires": 1814863077.2842,
+      "expires": 1814923293.493982,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
     },
     {
       "name": "ru2k",
-      "value": "11da09df-8a74-4765-8c6d-71410c9ee5b8",
+      "value": "42f29671-6406-4d50-afc4-4bebaaf74d00",
       "domain": ".kuajingmaihuo.com",
       "path": "/",
-      "expires": 1814863077.284258,
+      "expires": 1814923293.494046,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
     },
     {
       "name": "SUB_PASS_ID",
-      "value": "eyJ0IjoiRGJYSUY1a1dWOHhqVFpIQ0cyUkVLZzBTSmJTakRlS0tjWHNDNndJcmc5Ti9scCt3ZkhkcCtBNUdPdGhvZXJDVyIsInYiOjEsInMiOjEwMDAwLCJ1IjozMDgyOTI5OTk4MjQwOX0=",
+      "value": "eyJ0IjoicXNTSEVWQ2RYeWVJM2dLTVRMSHB2b1R4aWZmTnM3RDQrUkUrYy9aaXFnM3A4TllORmRYSjFPNHY4MFhFbVRkRCIsInYiOjEsInMiOjEwMDAwLCJ1IjozMDgyOTI5OTk4MjQwOX0=",
       "domain": "seller.kuajingmaihuo.com",
       "path": "/",
-      "expires": 1783413472.229487,
+      "expires": 1783473688.471318,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
@@ -95,18 +95,88 @@
       "value": "0",
       "domain": "seller.kuajingmaihuo.com",
       "path": "/",
-      "expires": 1783586272,
+      "expires": 1783646488,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
     },
     {
       "name": "api_uid",
-      "value": "Cmx4VmpLaWOHq5VWb8RkAg==",
+      "value": "Cm2UDGpMVJxCWV1KgzGlAg==",
       "domain": ".temu.com",
       "path": "/",
-      "expires": 1814863075.343363,
+      "expires": 1814923292.43627,
       "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_nano_fp",
+      "value": "GWZoSmZOZmiOIai2k3Znj#mGOm___JoJq82P35UtE_t",
+      "domain": "agentseller.temu.com",
+      "path": "/",
+      "expires": 1814923294,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "seller_temp",
+      "value": "N_eyJ0Ijoid1JQUTJKYUxTaGkyQWRNVS9rSlBsa3hGSWdBODA4RHRVTXo1ZnNGWHBxbkx3WXB5c2JqTFBncTFJeXZtMzBlaGVDUWxKaHd5U1B0SmJhOCtZTGVLUUE9PSIsInYiOjEsInMiOjEwMDAxLCJ1IjozMDgyOTI5OTk4MjQwOX0=",
+      "domain": "agentseller.temu.com",
+      "path": "/",
+      "expires": 1783473695.55763,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "mallid",
+      "value": "634418229032574",
+      "domain": "agentseller.temu.com",
+      "path": "/",
+      "expires": 1785979298,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_bee",
+      "value": "Onv2jZ1bSSkSucBSgVGXjS8kzuKp1apR",
+      "domain": ".temu.com",
+      "path": "/",
+      "expires": 1814923303.733407,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "njrpl",
+      "value": "Onv2jZ1bSSkSucBSgVGXjS8kzuKp1apR",
+      "domain": ".temu.com",
+      "path": "/",
+      "expires": 1814923303.733535,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "dilx",
+      "value": "T3cRfisTUltpGMzcBvMHi",
+      "domain": ".temu.com",
+      "path": "/",
+      "expires": 1814923303.733578,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "hfsc",
+      "value": "L3yCe4o47jzx1ZbMew==",
+      "domain": ".temu.com",
+      "path": "/",
+      "expires": 1814923303.733619,
+      "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
     }
@@ -121,7 +191,7 @@
         },
         {
           "name": "226_3_36_102_105_110_103_101_114_45_117_117_105_100_49_95_48_46_49_46_53",
-          "value": "226_3_72_54_54_97_98_48_99_55_56_45_48_49_100_97_45_52_55_102_102_45_56_99_48_50_45_97_49_53_101_50_57_53_54_102_51_101_99"
+          "value": "226_3_72_52_100_52_99_53_98_56_52_45_56_97_97_97_45_52_102_97_53_45_57_56_54_50_45_49_49_97_54_98_48_98_99_56_57_57_50"
         },
         {
           "name": "__route_map__",
@@ -133,7 +203,7 @@
         },
         {
           "name": "__SC_auth_store_key__",
-          "value": "{\"30829299982409\":\"2026-07-06 16:37:54\"}"
+          "value": "{\"30829299982409\":\"2026-07-07 09:21:31\"}"
         },
         {
           "name": "system_window_width_height",
@@ -141,31 +211,88 @@
         },
         {
           "name": "USER_TRACKING_YOLO#sc",
-          "value": "{\"timestamp\":1783327072301,\"data\":{\"/\":15522,\"/activity/marketing-activity\":15656,\"/activity/marketing-activity/auto-sign\":21234,\"/activity/marketing-activity/detail\":15683,\"/activity/marketing-activity/detail-new\":19871,\"/activity/marketing-activity/detail-new-result\":19869,\"/activity/marketing-activity/detail/worry-free\":20997,\"/activity/marketing-activity/exposure-subsidy-detail\":20818,\"/activity/marketing-activity/hot-girl-cloth\":21664,\"/activity/marketing-activity/hot-girl-cloth-rule\":21666,\"/activity/marketing-activity/log\":20580,\"/activity/marketing-activity/main\":19817,\"/activity/marketing-activity/mdeast-subsidy\":21253,\"/activity/marketing-activity/mdeast-subsidy-rule\":21255,\"/activity/marketing-activity/mideast-subsidy\":21253,\"/activity/marketing-activity/mideast-subsidy-rule\":21255,\"/activity/marketing-activity/result\":19790,\"/activity/marketing-activity/semi-detail\":19788,\"/activity/marketing-tools\":19228,\"/activity/marketing-tools/create-coupon\":19236,\"/activity/marketing-tools/create-mall-coupon\":21001,\"/activity/marketing-tools/create-recommend-coupon\":19234,\"/activity/tool/create-coupon\":19230,\"/activity/tool/create-recommend-coupon\":19232,\"/auth/apply-app\":18627,\"/auth/service/graph\":11864,\"/auth/service/graph/task\":16774,\"/auth/service/qualification\":16600,\"/auth/system-manage/client-manage\":11858,\"/chat-app/service-indicator\":22087,\"/container/main/best-seller-list\":20885,\"/develop\":19961,\"/goods/bonded\":21998,\"/goods/checkup-center\":20109,\"/goods/create/category\":22050,\"/goods/design\":23083,\"/goods/draft\":23073,\"/goods/eu-y2-guide\":22777,\"/goods/eu-y2-guide/contact-operator\":22779,\"/goods/evaluate/evaluate-list\":15534,\"/goods/faq-manage/faq-list\":15536,\"/goods/flow-grow\":19947,\"/goods/images-edit\":23072,\"/goods/img/ab-test\":19815,\"/goods/label\":22064,\"/goods/list\":22046,\"/goods/local-ware/guide/eu\":23050,\"/goods/mall-decoration/editor\":14146,\"/goods/mall-decoration/list\":14142,\"/goods/mall-decoration/list?source=menu\":14142,\"/goods/mall-decoration/preview\":14148,\"/goods/order-manager/shipping-center\":11878,\"/goods/photo-task\":16774,\"/goods/product-create/category\":15528,\"/goods/product-create/product-edit\":15526,\"/goods/product-create/stock-edit\":20035,\"/goods/product-images\":20037,\"/goods/product/bonded-goods\":16664,\"/goods/product/draft\":15454,\"/goods/product/list\":11882,\"/goods/product/update-task-detail\":20047,\"/goods/quality/dashboard\":19730,\"/goods/recommended-retail-price\":21380,\"/goods/size-template\":11876,\"/goods/stocking-vacuum\":22711,\"/goods/x-to-y2\":21767,\"/goods/x-to-y2/contact-operator\":21808,\"/labor/account\":11860,\"/labor/bill\":19819,\"/labor/choose-account-type\":11904,\"/labor/epr-fee\":19823,\"/labor/finance\":11844,\"/labor/finance/card\":11846,\"/labor/finance/card-add\":11848,\"/labor/hk/card-add\":11902,\"/labor/invest/home\":11896,\"/labor/limited/detail\":11892,\"/labor/limited/list\":11890,\"/labor/print-protocol\":11900,\"/labor/reconciliation/export-history\":11894,\"/labor/reconciliation/home\":10551,\"/labor/settle\":11884,\"/labor/settle/export-history\":11888,\"/labor/withdraw/apply\":11898,\"/lgst/auth-warehouse/services-market\":19728,\"/lgst/auth-warehouse/stock-guide\":23049,\"/lgst/inventory-manage/first-mile-service-provider-list\":22713,\"/main/act/data\":20842,\"/main/active-orders\":11880,\"/main/adjust-price-manage/feedback\":22103,\"/main/adjust-price-manage/order-price\":21851,\"/main/aftersales/information\":19821,\"/main/ai-video\":21145,\"/main/best-seller-list\":20905,\"/main/board/sku-sale-out\":15540,\"/main/data-center/goods-data\":15658,\"/main/data-center/goods-data?cn\":19963,\"/main/delivery/address-manage\":11854,\"/main/delivery/drivers-manage\":19813,\"/main/error-message\":22281,\"/main/evaluate/evaluate-list\":21029,\"/main/flow-grow\":22178,\"/main/flux-analysis\":20014,\"/main/full-chance-invitation\":21049,\"/main/goods-consult/consultation-record\":11908,\"/main/goods-consult/consumer-consultation\":15530,\"/main/goods-consult/knowledge-base\":11906,\"/main/market-analysis\":19945,\"/main/material-center\":11886,\"/main/material-center/tools\":15532,\"/main/order-manage\":11874,\"/main/order-manage-custom\":11912,\"/main/order-manage-urgency\":11872,\"/main/order-manager/express-calc-check\":18264,\"/main/order-manager/shipping-desk\":11840,\"/main/order-manager/shipping-desk/create\":15538,\"/main/order-manager/shipping-list\":11842,\"/main/price-manage/feedback\":15542,\"/main/price-manage/high-bid-rate\":17426,\"/main/price-manage/price-adjustment\":11862,\"/main/privilege-center\":20497,\"/main/product-create/category\":20039,\"/main/product-create/product-edit\":20041,\"/main/product/compete-manager\":15524,\"/main/product/invite-bids/list\":11916,\"/main/product/label\":11852,\"/main/product/list\":20043,\"/main/product/material\":11856,\"/main/product/model-template\":11866,\"/main/product/model-template/shoe\":11868,\"/main/product/seller-select\":11836,\"/main/product/trending-product-semi/detail\":19809,\"/main/product/trending-product-semi/list\":19807,\"/main/production-suggestion\":16428,\"/main/quality/dashboard\":20623,\"/main/restock/order-manage\":20225,\"/main/restock/plan\":19024,\"/main/restock/plan?tracking_from_source=cn_restock_menu\":19024,\"/main/restock/stocking-shipping-receipt\":20776,\"/main/sale-manage/board/count\":19732,\"/main/sale-manage/board/deliver-examine\":19734,\"/main/sale-manage/board/inbound-abnormal\":17948,\"/main/sale-manage/board/receive-abnormal\":17946,\"/main/sale-manage/main\":11850,\"/main/sample-manage\":11870,\"/main/stock/board\":19290,\"/main/stock/rollback-setting\":19288,\"/main/top-sale-stock\":19198,\"/main/upload-sample-info\":20045,\"/main/violation-message\":11914,\"/market/service/goods-rule/main\":20515,\"/market/service/goods-rule/order-detail\":20519,\"/market/service/goods-rule/order-list\":20513,\"/market/service/graph/main\":19831,\"/market/service/graph/task\":16774,\"/market/service/material/main\":20517,\"/market/service/rule/main\":19825,\"/market/service/rule/order-detail\":19829,\"/market/service/rule/order-list\":19827,\"/material/ai-video\":22062,\"/material/guide/edit\":20029,\"/material/guide/list\":16670,\"/material/image-task\":22056,\"/material/material-center\":22058,\"/material/material-tools\":22060,\"/material/model/cloth\":22052,\"/mmsos/shipping-address.html\":19837,\"/mmsos/shipping-templates.html\":19835,\"/newon/error-message\":19034,\"/newon/full-chance-invitation\":21968,\"/newon/product-select\":22048,\"/open-platform/intellectual-property-center\":19797,\"/open/service/graph/task\":22054,\"/order\":11838,\"/privilege-center\":20031,\"/product\":11834,\"/sample/clothing-set\":17372,\"/semi-guide\":21051,\"/stock/fully-mgt/hq-ordinary-stock-order-mgt\":23013,\"/stock/fully-mgt/order-manage\":23017,\"/stock/fully-mgt/order-manage-urgency\":21778,\"/stock/fully-mgt/sale-manage/main\":21786,\"/stock/purchase-order-mgt\":23014,\"/wms/deliver-examine-board\":21782,\"/wms/exception/handle\":16007,\"/wms/exception/notice\":16009,\"/wms/qc-detail\":19706,\"/wms/return-method-mgt\":17924,\"/wms/stock-mgt/inspection-package-mgt\":19696,\"/wms/stock-mgt/return-apply\":19704,\"/wms/stock-mgt/return-order-mgt\":11910,\"/wms/stock-mgt/return-package-detail\":15154,\"/wms/stock-mgt/return-receipt-mgt\":19985,\"/wms/stock-mgt/violation-message\":21784,\"/wms/tax-free-return-mgt/return-confirm\":20001,\"/wms/tax-free-return-mgt/return-pkg-search\":20062,\"https://ads.temu.com/index.html\":21134,\"https://agentseller-us.temu.com/mmsos/return-logistics-appeal.html\":22807,\"https://agentseller.temu.com/govern/dashboard\":19833,\"https://agentseller.temu.com/mmsos/orders.html\":19726,\"https://kuajing.pinduoduo.com/settle/graph-service\":11864,\"https://kuajing.pinduoduo.com/settle/qualification-service\":16600,\"https://seller.kuajingmaihuo.com/govern/dashboard\":19833,\"https://seller.kuajingmaihuo.com/settle/graph-service\":11864,\"https://seller.kuajingmaihuo.com/settle/qualification-service\":16600,\"https://us.ads.temu.com/index.html\":21132}}"
+          "value": "{\"timestamp\":1783387288542,\"data\":{\"/\":15522,\"/activity/marketing-activity\":15656,\"/activity/marketing-activity/auto-sign\":21234,\"/activity/marketing-activity/detail\":15683,\"/activity/marketing-activity/detail-new\":19871,\"/activity/marketing-activity/detail-new-result\":19869,\"/activity/marketing-activity/detail/worry-free\":20997,\"/activity/marketing-activity/exposure-subsidy-detail\":20818,\"/activity/marketing-activity/hot-girl-cloth\":21664,\"/activity/marketing-activity/hot-girl-cloth-rule\":21666,\"/activity/marketing-activity/log\":20580,\"/activity/marketing-activity/main\":19817,\"/activity/marketing-activity/mdeast-subsidy\":21253,\"/activity/marketing-activity/mdeast-subsidy-rule\":21255,\"/activity/marketing-activity/mideast-subsidy\":21253,\"/activity/marketing-activity/mideast-subsidy-rule\":21255,\"/activity/marketing-activity/result\":19790,\"/activity/marketing-activity/semi-detail\":19788,\"/activity/marketing-tools\":19228,\"/activity/marketing-tools/create-coupon\":19236,\"/activity/marketing-tools/create-mall-coupon\":21001,\"/activity/marketing-tools/create-recommend-coupon\":19234,\"/activity/tool/create-coupon\":19230,\"/activity/tool/create-recommend-coupon\":19232,\"/auth/apply-app\":18627,\"/auth/service/graph\":11864,\"/auth/service/graph/task\":16774,\"/auth/service/qualification\":16600,\"/auth/system-manage/client-manage\":11858,\"/chat-app/service-indicator\":22087,\"/container/main/best-seller-list\":20885,\"/develop\":19961,\"/goods/bonded\":21998,\"/goods/checkup-center\":20109,\"/goods/create/category\":22050,\"/goods/design\":23083,\"/goods/draft\":23073,\"/goods/eu-y2-guide\":22777,\"/goods/eu-y2-guide/contact-operator\":22779,\"/goods/evaluate/evaluate-list\":15534,\"/goods/faq-manage/faq-list\":15536,\"/goods/flow-grow\":19947,\"/goods/images-edit\":23072,\"/goods/img/ab-test\":19815,\"/goods/label\":22064,\"/goods/list\":22046,\"/goods/local-ware/guide/eu\":23050,\"/goods/mall-decoration/editor\":14146,\"/goods/mall-decoration/list\":14142,\"/goods/mall-decoration/list?source=menu\":14142,\"/goods/mall-decoration/preview\":14148,\"/goods/order-manager/shipping-center\":11878,\"/goods/photo-task\":16774,\"/goods/product-create/category\":15528,\"/goods/product-create/product-edit\":15526,\"/goods/product-create/stock-edit\":20035,\"/goods/product-images\":20037,\"/goods/product/bonded-goods\":16664,\"/goods/product/draft\":15454,\"/goods/product/list\":11882,\"/goods/product/update-task-detail\":20047,\"/goods/quality/dashboard\":19730,\"/goods/recommended-retail-price\":21380,\"/goods/size-template\":11876,\"/goods/stocking-vacuum\":22711,\"/goods/x-to-y2\":21767,\"/goods/x-to-y2/contact-operator\":21808,\"/labor/account\":11860,\"/labor/bill\":19819,\"/labor/choose-account-type\":11904,\"/labor/epr-fee\":19823,\"/labor/finance\":11844,\"/labor/finance/card\":11846,\"/labor/finance/card-add\":11848,\"/labor/hk/card-add\":11902,\"/labor/invest/home\":11896,\"/labor/limited/detail\":11892,\"/labor/limited/list\":11890,\"/labor/print-protocol\":11900,\"/labor/reconciliation/export-history\":11894,\"/labor/reconciliation/home\":10551,\"/labor/settle\":11884,\"/labor/settle/export-history\":11888,\"/labor/withdraw/apply\":11898,\"/lgst/auth-warehouse/services-market\":19728,\"/lgst/auth-warehouse/stock-guide\":23049,\"/lgst/inventory-manage/first-mile-service-provider-list\":22713,\"/main/act/data\":20842,\"/main/active-orders\":11880,\"/main/adjust-price-manage/feedback\":22103,\"/main/adjust-price-manage/order-price\":21851,\"/main/aftersales/information\":19821,\"/main/ai-video\":21145,\"/main/best-seller-list\":20905,\"/main/board/sku-sale-out\":15540,\"/main/data-center/goods-data\":15658,\"/main/data-center/goods-data?cn\":19963,\"/main/delivery/address-manage\":11854,\"/main/delivery/drivers-manage\":19813,\"/main/error-message\":22281,\"/main/evaluate/evaluate-list\":21029,\"/main/flow-grow\":22178,\"/main/flux-analysis\":20014,\"/main/full-chance-invitation\":21049,\"/main/goods-consult/consultation-record\":11908,\"/main/goods-consult/consumer-consultation\":15530,\"/main/goods-consult/knowledge-base\":11906,\"/main/market-analysis\":19945,\"/main/material-center\":11886,\"/main/material-center/tools\":15532,\"/main/order-manage\":11874,\"/main/order-manage-custom\":11912,\"/main/order-manage-urgency\":11872,\"/main/order-manager/express-calc-check\":18264,\"/main/order-manager/shipping-desk\":11840,\"/main/order-manager/shipping-desk/create\":15538,\"/main/order-manager/shipping-list\":11842,\"/main/price-manage/feedback\":15542,\"/main/price-manage/high-bid-rate\":17426,\"/main/price-manage/price-adjustment\":11862,\"/main/privilege-center\":20497,\"/main/product-create/category\":20039,\"/main/product-create/product-edit\":20041,\"/main/product/compete-manager\":15524,\"/main/product/invite-bids/list\":11916,\"/main/product/label\":11852,\"/main/product/list\":20043,\"/main/product/material\":11856,\"/main/product/model-template\":11866,\"/main/product/model-template/shoe\":11868,\"/main/product/seller-select\":11836,\"/main/product/trending-product-semi/detail\":19809,\"/main/product/trending-product-semi/list\":19807,\"/main/production-suggestion\":16428,\"/main/quality/dashboard\":20623,\"/main/restock/order-manage\":20225,\"/main/restock/plan\":19024,\"/main/restock/plan?tracking_from_source=cn_restock_menu\":19024,\"/main/restock/stocking-shipping-receipt\":20776,\"/main/sale-manage/board/count\":19732,\"/main/sale-manage/board/deliver-examine\":19734,\"/main/sale-manage/board/inbound-abnormal\":17948,\"/main/sale-manage/board/receive-abnormal\":17946,\"/main/sale-manage/main\":11850,\"/main/sample-manage\":11870,\"/main/stock/board\":19290,\"/main/stock/rollback-setting\":19288,\"/main/top-sale-stock\":19198,\"/main/upload-sample-info\":20045,\"/main/violation-message\":11914,\"/market/service/goods-rule/main\":20515,\"/market/service/goods-rule/order-detail\":20519,\"/market/service/goods-rule/order-list\":20513,\"/market/service/graph/main\":19831,\"/market/service/graph/task\":16774,\"/market/service/material/main\":20517,\"/market/service/rule/main\":19825,\"/market/service/rule/order-detail\":19829,\"/market/service/rule/order-list\":19827,\"/material/ai-video\":22062,\"/material/guide/edit\":20029,\"/material/guide/list\":16670,\"/material/image-task\":22056,\"/material/material-center\":22058,\"/material/material-tools\":22060,\"/material/model/cloth\":22052,\"/mmsos/shipping-address.html\":19837,\"/mmsos/shipping-templates.html\":19835,\"/newon/error-message\":19034,\"/newon/full-chance-invitation\":21968,\"/newon/product-select\":22048,\"/open-platform/intellectual-property-center\":19797,\"/open/service/graph/task\":22054,\"/order\":11838,\"/privilege-center\":20031,\"/product\":11834,\"/sample/clothing-set\":17372,\"/semi-guide\":21051,\"/stock/fully-mgt/hq-ordinary-stock-order-mgt\":23013,\"/stock/fully-mgt/order-manage\":23017,\"/stock/fully-mgt/order-manage-urgency\":21778,\"/stock/fully-mgt/sale-manage/main\":21786,\"/stock/purchase-order-mgt\":23014,\"/wms/deliver-examine-board\":21782,\"/wms/exception/handle\":16007,\"/wms/exception/notice\":16009,\"/wms/qc-detail\":19706,\"/wms/return-method-mgt\":17924,\"/wms/stock-mgt/inspection-package-mgt\":19696,\"/wms/stock-mgt/return-apply\":19704,\"/wms/stock-mgt/return-order-mgt\":11910,\"/wms/stock-mgt/return-package-detail\":15154,\"/wms/stock-mgt/return-receipt-mgt\":19985,\"/wms/stock-mgt/violation-message\":21784,\"/wms/tax-free-return-mgt/return-confirm\":20001,\"/wms/tax-free-return-mgt/return-pkg-search\":20062,\"https://ads.temu.com/index.html\":21134,\"https://agentseller-us.temu.com/mmsos/return-logistics-appeal.html\":22807,\"https://agentseller.temu.com/govern/dashboard\":19833,\"https://agentseller.temu.com/mmsos/orders.html\":19726,\"https://kuajing.pinduoduo.com/settle/graph-service\":11864,\"https://kuajing.pinduoduo.com/settle/qualification-service\":16600,\"https://seller.kuajingmaihuo.com/govern/dashboard\":19833,\"https://seller.kuajingmaihuo.com/settle/graph-service\":11864,\"https://seller.kuajingmaihuo.com/settle/qualification-service\":16600,\"https://us.ads.temu.com/index.html\":21132}}"
         },
         {
           "name": "DEVICE_ID",
-          "value": "3jxnawjxj2"
+          "value": "zutzoz9asy"
         },
         {
           "name": "_nano_fp",
-          "value": "XpmJXqXxnq9ynpd8nT_xJWWK9pxIwnMfqxkAcR4l"
+          "value": "XpmJXqXJnqPynpTbXT_GXd2Zq~zL7nNpkU2ri1eA"
         },
         {
           "name": "226_3_36_102_105_110_103_101_114_45_117_117_105_100_50_95_48_46_49_46_53",
-          "value": "226_3_72_49_49_100_97_48_57_100_102_45_56_97_55_52_45_52_55_54_53_45_56_99_54_100_45_55_49_52_49_48_99_57_101_101_53_98_56"
+          "value": "226_3_72_52_50_102_50_57_54_55_49_45_54_52_48_54_45_52_100_53_48_45_97_102_99_52_45_52_98_101_98_97_97_102_55_52_100_48_48"
         },
         {
           "name": "226_3_34_102_105_110_103_101_114_45_70_75_71_74_95_48_46_49_46_53",
-          "value": "226_3_42_66_108_109_99_88_77_49_72_98_85_95_99_71_118_110_53_45_74_45_67_71"
+          "value": "226_3_42_65_50_109_70_89_54_71_79_122_112_53_114_74_102_74_72_79_54_105_95_66"
         },
         {
           "name": "bg_full_link_user_tracking_current_document_referer",
-          "value": "[{\"st\":1783327072675,\"pn\":\"/settle/site-main\"},{\"st\":1783327072272,\"pn\":\"/login\",\"et\":1783327072305}]"
+          "value": "[{\"st\":1783387288924,\"pn\":\"/settle/site-main\"},{\"st\":1783387288513,\"pn\":\"/login\",\"et\":1783387288543}]"
         },
         {
           "name": "226_3_32_102_105_110_103_101_114_45_107_101_121_95_48_46_49_46_53",
-          "value": "226_3_64_101_75_69_102_114_80_111_103_52_109_102_75_74_88_77_112_104_71_118_85_115_72_98_54_110_75_48_74_48_97_109_86"
+          "value": "226_3_64_70_51_66_50_65_115_110_52_120_83_80_97_119_69_106_116_78_83_114_72_80_102_112_116_80_104_86_97_103_97_109_51"
+        }
+      ]
+    },
+    {
+      "origin": "https://agentseller.temu.com",
+      "localStorage": [
+        {
+          "name": "h_dkrjl",
+          "value": "T3cRfisTUltpGMzcBvMHi"
+        },
+        {
+          "name": "__SC_GOODS_IMAGE_HOST__",
+          "value": "{\"host\":\"img-1.kwcdn.com\",\"time\":1783387306472}"
+        },
+        {
+          "name": "agentseller-mall-info-id",
+          "value": "634418229032574"
+        },
+        {
+          "name": "system_window_width_height",
+          "value": "{\"sH\":1280,\"sW\":1241}"
+        },
+        {
+          "name": "USER_TRACKING_YOLO#agent_seller",
+          "value": "{\"timestamp\":1783387295476,\"data\":{\"/\":24235,\"/activity/marketing-activity\":24572,\"/activity/marketing-activity/auto-sign\":24592,\"/activity/marketing-activity/black-friday\":27342,\"/activity/marketing-activity/chance-goods\":25298,\"/activity/marketing-activity/cirro\":27301,\"/activity/marketing-activity/detail\":24576,\"/activity/marketing-activity/detail-new\":24586,\"/activity/marketing-activity/detail-new-result\":24584,\"/activity/marketing-activity/detail/worry-free\":24590,\"/activity/marketing-activity/ex-support-plan\":25893,\"/activity/marketing-activity/ex-support-plan-rule\":25891,\"/activity/marketing-activity/exposure-subsidy-detail\":24588,\"/activity/marketing-activity/hot-girl-cloth\":24600,\"/activity/marketing-activity/hot-girl-cloth-rule\":24602,\"/activity/marketing-activity/invite-full\":27340,\"/activity/marketing-activity/log\":24594,\"/activity/marketing-activity/main\":24578,\"/activity/marketing-activity/mdeast-subsidy\":24596,\"/activity/marketing-activity/mdeast-subsidy-rule\":24598,\"/activity/marketing-activity/metric\":27491,\"/activity/marketing-activity/result\":24582,\"/activity/marketing-activity/semi-detail\":24580,\"/activity/marketing-activity/spring-activity\":24574,\"/activity/marketing-activity/valid-log\":25945,\"/activity/marketing-tools\":24564,\"/activity/marketing-tools/create-cashback\":25338,\"/activity/marketing-tools/create-coupon\":24566,\"/activity/marketing-tools/create-free-shipping\":25336,\"/activity/marketing-tools/create-mall-coupon\":24570,\"/activity/marketing-tools/create-recommend-coupon\":24568,\"/activity/marketing-tools/create-second-discount\":30516,\"/activity/marketing-tools/edit-free-shipping\":25910,\"/activity/sales-return\":25889,\"/activity/uk-business-guide\":30300,\"/chat-app/index\":21395,\"/chat-app/message-setting\":21401,\"/chat-app/robot-message\":21403,\"/chat-app/ticket-detail\":21399,\"/chat-app/ticket-list\":21397,\"/goods/bonded\":25155,\"/goods/checkup-center\":25149,\"/goods/create/category\":25123,\"/goods/discard\":29613,\"/goods/draft\":25119,\"/goods/edit\":25121,\"/goods/images-edit\":25115,\"/goods/la-y2-guide\":27354,\"/goods/la-y2-guide/contact-operator\":27356,\"/goods/label\":25111,\"/goods/list\":25113,\"/goods/pattern-lib\":30037,\"/goods/product/list\":21338,\"/goods/radiation-expand\":27358,\"/goods/radiation-expand/contact-operator\":27681,\"/goods/recommended-retail-price\":25163,\"/goods/retrieval-board\":25161,\"/goods/retrieval/detail/eu\":30461,\"/goods/size-template\":25127,\"/goods/stock-edit\":25117,\"/goods/stocking-vacuum\":27089,\"/goods/us-y2-guide\":30223,\"/goods/us-y2-guide/contact-operator\":30225,\"/goods/x-to-y2\":27336,\"/govern-platform/intellectual-property-center\":21415,\"/labor/bill-download\":21470,\"/labor/bill-download-with-detail\":21468,\"/labor/epr-fee\":21478,\"/labor/limited/list\":21472,\"/labor/settle\":21464,\"/labor/stml-logistics\":21476,\"/labor/stml-reverse-logistics\":21474,\"/labor/tax-settle\":21466,\"/lgst/auth-warehouse/abnormal-order\":21435,\"/lgst/auth-warehouse/assembly-freight-estimate\":23201,\"/lgst/auth-warehouse/assembly-freight-estimate/result\":23203,\"/lgst/auth-warehouse/auth-warehouse-manage\":21429,\"/lgst/auth-warehouse/cooperation-intent\":21423,\"/lgst/auth-warehouse/cost-counter\":21425,\"/lgst/auth-warehouse/cw-fullfilment\":25412,\"/lgst/auth-warehouse/dashboard\":23181,\"/lgst/auth-warehouse/inventory-config-rule/rule-edit\":23189,\"/lgst/auth-warehouse/inventory-config-rule/rule-list\":23187,\"/lgst/auth-warehouse/link-goods\":21431,\"/lgst/auth-warehouse/link-goods/match-rules\":23183,\"/lgst/auth-warehouse/order-rule-config/logistics-rule-config-list\":30727,\"/lgst/auth-warehouse/order-rule-config/manually-review-orders-detail\":23199,\"/lgst/auth-warehouse/order-rule-config/manually-review-orders-list\":23197,\"/lgst/auth-warehouse/order-rule-config/merge-package-config\":30734,\"/lgst/auth-warehouse/order-rule-config/order-marking-shipping\":30726,\"/lgst/auth-warehouse/order-rule-config/set-logistics-detail\":23195,\"/lgst/auth-warehouse/order-rule-config/set-logistics-list\":23193,\"/lgst/auth-warehouse/order-rule-config/set-signature-list\":30725,\"/lgst/auth-warehouse/order-rule-config/set-warehouse\":30728,\"/lgst/auth-warehouse/outbound-order\":21437,\"/lgst/auth-warehouse/real-time-combination-stock-query\":23185,\"/lgst/auth-warehouse/real-time-stock-query\":21445,\"/lgst/auth-warehouse/return-prediction\":21451,\"/lgst/auth-warehouse/return-warehouse-settings\":21453,\"/lgst/auth-warehouse/services-complaint\":21433,\"/lgst/auth-warehouse/services-feedback\":30730,\"/lgst/auth-warehouse/services-market\":21421,\"/lgst/auth-warehouse/special-deals-column\":30731,\"/lgst/auth-warehouse/stock-accuracy-query\":23191,\"/lgst/auth-warehouse/stock-change-detail\":21443,\"/lgst/auth-warehouse/stock-guide\":30628,\"/lgst/auth-warehouse/stock-preparation\":21449,\"/lgst/auth-warehouse/tail-cost-counter\":21427,\"/lgst/auth-warehouse/waybill-rule-configuration/rule-maintenance\":21441,\"/lgst/auth-warehouse/waybill-rule-configuration/template-list\":21439,\"/lgst/auth-warehouse/zoned-stock-advice\":21447,\"/lgst/inventory-manage/exclusive-stocking-discount\":30109,\"/lgst/super-cooperative-warehouse/subscription-agreement\":24950,\"/main/across-mall-merge\":25414,\"/main/act/data\":23380,\"/main/act/data-full\":25175,\"/main/act/history-data\":27338,\"/main/adjust-price-manage/feedback\":25157,\"/main/adjust-price-manage/high-price\":25137,\"/main/adjust-price-manage/order-price\":25139,\"/main/aftersales/information\":21381,\"/main/agreements/sign-agreement\":27299,\"/main/business-opportunity\":23083,\"/main/business-opportunity/goods-detail\":23122,\"/main/business-opportunity/market-detail\":23336,\"/main/category-analysis\":23120,\"/main/compliance/order-list\":21391,\"/main/course/detail\":25105,\"/main/course/list\":25107,\"/main/customize-goods\":21369,\"/main/data-center/goods-data\":21363,\"/main/delivery/address-manage\":21417,\"/main/delivery/drivers-manage\":27303,\"/main/error-message\":27344,\"/main/evaluate-manage\":21379,\"/main/evaluate/evaluate-list\":23357,\"/main/evaluate/evaluate-list?a\":23357,\"/main/examination/detail\":25109,\"/main/flow-grow\":21596,\"/main/flux-analysis\":21683,\"/main/flux-analysis-full\":25179,\"/main/goods-label/make\":22660,\"/main/goods-tag/print\":21387,\"/main/hot-rank-uk\":26178,\"/main/hot-sale-rank\":21685,\"/main/knowledge-guide\":21419,\"/main/link-advertisement\":27603,\"/main/mall-flux-analysis\":22653,\"/main/mall-flux-analysis-full\":25181,\"/main/mall-hot-performance\":27239,\"/main/market-analysis\":21365,\"/main/missing-stock-keywords\":21367,\"/main/order-manager/shipping-desk\":24828,\"/main/order-manager/shipping-list\":24830,\"/main/pallet-lack\":25177,\"/main/performance-info\":27350,\"/main/printing-info\":25954,\"/main/privilege-center\":24963,\"/main/punishment/qe-punishment\":22580,\"/main/quality/dashboard\":21371,\"/main/quality/optimize\":25143,\"/main/restock/order-manage\":21411,\"/main/restock/plan\":21413,\"/main/restock/stocking-shipping-receipt\":23308,\"/main/restock/stocking-shipping-receipt-details\":23310,\"/main/restock/stocking-shipping-receipt/calculate\":24606,\"/main/restock/stocking-shipping-receipt/operate\":23312,\"/main/restock/stocking-shipping-receipt/operate?mode=1&tracking_from_source=cw\":30729,\"/main/sample-manage\":25159,\"/main/sample-return\":23365,\"/main/stock/board\":21407,\"/main/stock/rollback-setting\":21409,\"/main/survey\":21383,\"/main/tax-number-config\":21340,\"/main/top-sale-cate\":21373,\"/main/top-sale-high-yield\":21375,\"/main/top-sale-stock\":21377,\"/material/ab-test\":25169,\"/material/ai-video\":25171,\"/material/guide/edit\":25147,\"/material/guide/list\":25145,\"/material/image-task\":25135,\"/material/main-video-allowance\":26388,\"/material/main-video-allowance/detail\":26386,\"/material/material-center\":25165,\"/material/material-tools\":25167,\"/material/model/cloth\":25129,\"/material/model/shoe\":25131,\"/message\":21385,\"/newon/best-seller-list\":25151,\"/newon/bsr/eu\":30910,\"/newon/compete-manager\":25141,\"/newon/exchange-goods\":27440,\"/newon/exchange-goods-semi\":28698,\"/newon/full-chance-invitation\":25101,\"/newon/glo-bsr-flow\":30428,\"/newon/glo-bsr-home\":26712,\"/newon/goods-data\":25183,\"/newon/hot-help\":25657,\"/newon/hot-prop-plan-home\":25895,\"/newon/invite-bids-semi/detail\":24961,\"/newon/invite-bids-semi/list\":24959,\"/newon/invite-bids/detail\":24957,\"/newon/invite-bids/list\":24955,\"/newon/north-us-best-seller\":26257,\"/newon/product-select\":25125,\"/open/mall-decoration/editor\":27348,\"/open/mall-decoration/list\":27346,\"/open/rule/order-list\":21389,\"/open/service/graph/task\":25133,\"/sample/clothing-set\":25153,\"/stock/fully-mgt/order-manage\":24822,\"/stock/fully-mgt/order-manage-custom\":24824,\"/stock/fully-mgt/order-manage-urgency\":24820,\"/stock/fully-mgt/production-suggestion\":24826,\"/stock/fully-mgt/sale-manage/board/count\":24836,\"/stock/fully-mgt/sale-manage/board/inbound-abnormal\":24838,\"/stock/fully-mgt/sale-manage/board/receive-abnormal\":24840,\"/stock/fully-mgt/sale-manage/board/sku-sale-out\":24834,\"/stock/fully-mgt/sale-manage/main\":24832,\"/stock/fully-mgt/spring-festival-privilege\":27305,\"/supplier-delivery-lgst/restock/special-line-campaign\":30393,\"/supplier-delivery-lgst/restock/stocking-shipping-receipt-details\":23310,\"/supplier-delivery-lgst/restock/stocking-shipping-receipt/calculate\":24606,\"/supplier-delivery-lgst/restock/stocking-shipping-receipt/operate\":23312,\"/wms/deliver-examine-board\":24842,\"/wms/exception/handle\":27311,\"/wms/exception/notice\":27313,\"/wms/qc-detail\":25173,\"/wms/semi-mgt/fee-guide/in-onshelf-fee\":24878,\"/wms/semi-mgt/return-goods\":24952,\"/wms/semi-mgt/volume-weight-difference\":24869,\"/wms/stock-mgt/inspection-package-mgt\":27319,\"/wms/stock-mgt/return-apply\":27307,\"/wms/stock-mgt/return-full-managed-goods\":24668,\"/wms/stock-mgt/return-order-mgt\":27309,\"/wms/stock-mgt/return-package-detail\":27315,\"/wms/stock-mgt/return-receipt-mgt\":27317,\"/wms/stock-mgt/violation-message\":24639,\"/wms/tax-free-return-mgt/return-confirm\":27321,\"https://ads.temu.com/index.html?adAreaOverride=2&source=2&seller_source=11\":27352,\"https://ads.temu.com/index.html?source=2&seller_source=11\":25187,\"https://agentseller.temu.com/govern/dashboard\":21393,\"https://agentseller.temu.com/main/restock/stocking-shipping-receipt/operate?mode=1\":23312,\"https://agentseller.temu.com/mmsos/cancel-order-list.html\":21484,\"https://agentseller.temu.com/mmsos/charge-back.html\":21490,\"https://agentseller.temu.com/mmsos/complain-list.html\":21488,\"https://agentseller.temu.com/mmsos/orders.html\":21480,\"https://agentseller.temu.com/mmsos/reship-list.html\":21486,\"https://agentseller.temu.com/mmsos/return-refund-list.html\":21482,\"https://agentseller.temu.com/mmsos/shipping-address.html\":21405,\"https://eu.ads.temu.com/index.html?source=3&seller_source=13\":25185}}"
+        },
+        {
+          "name": "explosive-experiment-key",
+          "value": "{\"time\":1783387299188,\"mallId\":634418229032574}"
+        },
+        {
+          "name": "DEVICE_ID",
+          "value": "1mmaouvcb0"
+        },
+        {
+          "name": "MC_RECENT_VISIT-mms",
+          "value": "[{\"name\":\"首页\",\"path\":\"/\",\"visitTime\":1783387298246}]"
+        },
+        {
+          "name": "__SC_FORECE_UPDATE_CONFIG__",
+          "value": "{\"temu-sca-material\":true}"
+        },
+        {
+          "name": "h_wjrpl",
+          "value": "Onv2jZ1bSSkSucBSgVGXjS8kzuKp1apR"
+        },
+        {
+          "name": "_nano_fp",
+          "value": "GWZoSmZOZmiOIai2k3Znj#mGOm___JoJq82P35UtE_t"
+        },
+        {
+          "name": "bg_full_link_user_tracking_current_document_referer",
+          "value": "[{\"st\":1783387298694,\"pn\":\"/\"},{\"st\":1783387294798,\"pn\":\"/auth/authentication\",\"et\":1783387296265}]"
+        },
+        {
+          "name": "message_box_id",
+          "value": "3538267507647"
         }
       ]
     }
