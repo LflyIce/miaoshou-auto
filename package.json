@@ -1,6 +1,6 @@
 {
   "name": "miaoshou-attribute-helper",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "description": "本地妙手ERP商品必填属性自动填写助手",
   "main": "electron/main.js",
   "scripts": {
