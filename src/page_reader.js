@@ -303,10 +303,47 @@ async function readCurrentProductImageUrl(page) {
   }).catch(() => '');
 }
 
+/**
+ * 从商品列表 active 项读取原始商品标题（未经 AI 改写的中文名）。
+ * 用于失败汇总时展示原始名称，便于人工识别。
+ */
+async function readCurrentProductOriginalTitle(page) {
+  return page.evaluate(() => {
+    function visible(el) {
+      const rect = el.getBoundingClientRect();
+      const style = window.getComputedStyle(el);
+      return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+    }
+
+    const listRoots = Array.from(document.querySelectorAll(
+      '.goods-list-box, .goods-list, .pro-scrollbar.goods-list, [class*="goods-list"], [class*="product-list"]'
+    )).filter(visible);
+
+    for (const root of listRoots) {
+      const items = Array.from(root.querySelectorAll('.goods-item'));
+      for (const item of items) {
+        if (!/\bactive\b|\bselected\b|\bcurrent\b|\bis-active\b/.test(`${item.className || ''}`)) continue;
+        // 从 item-title 读取原始标题（含 title 属性与纯文本）
+        const titleEl = item.querySelector('.item-title, [class*="item-title"], .goods-title, [class*="goods-title"]');
+        if (titleEl) {
+          const raw = (titleEl.getAttribute('title') || titleEl.innerText || titleEl.textContent || '').replace(/\s+/g, ' ').trim();
+          if (raw) return raw;
+        }
+        // 兜底：从整个 item 的文本中提取
+        const text = (item.innerText || item.textContent || '').replace(/\s+/g, ' ').trim();
+        if (text) return text.slice(0, 200);
+      }
+    }
+
+    return '';
+  }).catch(() => '');
+}
+
 module.exports = {
   readProductInfo,
   readProductLink,
   readTotalProductCount,
   readCurrentProductIndex,
-  readCurrentProductImageUrl
+  readCurrentProductImageUrl,
+  readCurrentProductOriginalTitle
 };

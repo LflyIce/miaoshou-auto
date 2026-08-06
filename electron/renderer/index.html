@@ -73,6 +73,10 @@
               <h2>实时日志</h2>
               <button id="clearLogBtn">清空</button>
             </div>
+            <div id="progressBar" class="progress-bar is-hidden">
+              <div class="progress-fill" id="progressFill"></div>
+              <span class="progress-text" id="progressText">准备中...</span>
+            </div>
             <pre id="logOutput"></pre>
           </div>
         </section>
@@ -80,13 +84,13 @@
         <section id="settingsView" class="view">
           <div class="settings-grid">
             <label>
-              API Key
-              <input id="apiKeyInput" type="password" autocomplete="off" placeholder="ZAI_API_KEY" />
+              模型
+              <select id="modelSelect"></select>
             </label>
 
             <label>
-              模型
-              <input id="modelInput" type="text" placeholder="glm-5.1" />
+              API Key
+              <input id="apiKeyInput" type="password" autocomplete="off" placeholder="ZAI_API_KEY" />
             </label>
 
             <label>

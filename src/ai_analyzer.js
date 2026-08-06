@@ -1,25 +1,146 @@
 const { loadConfig, readJSONSync, resolveRoot } = require('./utils');
+const { AnthropicClient, extractJSON } = require('./anthropic_client');
 
 function getPromptTemplates() {
   return readJSONSync(resolveRoot('config', 'prompt_templates.json'), {});
 }
 
-async function analyzeAttributes(productInfo, requiredAttributes, knowledgeContext = null) {
+// ==================== 标题合规后处理 ====================
+// 违禁词库（从原 system prompt 迁移到确定性代码，省 token）
+// 每条: { pattern: 匹配正则, replace: 替换字符串, flags: 正则标志 }
+const TITLE_BLOCKED_WORDS = [
+  // 绝对化/夸大用语
+  { pattern: '最', replace: '', flags: 'g' },
+  { pattern: '第一', replace: '', flags: 'g' },
+  { pattern: '顶级', replace: '高级', flags: 'g' },
+  { pattern: '极品', replace: '优质', flags: 'g' },
+  { pattern: '唯一', replace: '', flags: 'g' },
+  { pattern: '绝对', replace: '', flags: 'g' },
+  { pattern: '顶尖', replace: '高品质', flags: 'g' },
+  { pattern: '最好', replace: '优质', flags: 'g' },
+  { pattern: '非常好', replace: '优良', flags: 'g' },
+  { pattern: '特别好', replace: '优良', flags: 'g' },
+  { pattern: '最強', replace: '强力', flags: 'g' },
+  { pattern: '絶対', replace: '', flags: 'g' },
+  { pattern: 'No\\.1', replace: '', flags: 'gi' },
+  { pattern: '军工级品质', replace: '高品质', flags: 'g' },
+  { pattern: '第一品牌', replace: '人気品牌', flags: 'g' },
+  { pattern: '领先品牌', replace: '人気品牌', flags: 'g' },
+  { pattern: '超越', replace: '', flags: 'g' },
+  // 医疗/功效宣称
+  { pattern: '治病', replace: '', flags: 'g' },
+  { pattern: '治疗', replace: '', flags: 'g' },
+  { pattern: '消炎', replace: '', flags: 'g' },
+  { pattern: '抗病毒', replace: '', flags: 'g' },
+  { pattern: '减肥', replace: 'ダイエット', flags: 'g' },
+  { pattern: '祛斑', replace: 'シミ対策', flags: 'g' },
+  { pattern: '治愈', replace: '', flags: 'g' },
+  { pattern: '增强免疫力', replace: '健康サポート', flags: 'g' },
+  { pattern: '延缓衰老', replace: 'ケア', flags: 'g' },
+  // 诱导性/紧迫性
+  { pattern: '必买', replace: 'おすすめ', flags: 'g' },
+  { pattern: '抢光', replace: '', flags: 'g' },
+  { pattern: '错过后悔', replace: '', flags: 'g' },
+  { pattern: '限时特价', replace: '現価格', flags: 'g' },
+  { pattern: '限量', replace: '', flags: 'g' },
+  { pattern: '秒杀', replace: '', flags: 'g' },
+  { pattern: '万人疯抢', replace: '大人気', flags: 'g' },
+  { pattern: 'hot sale', replace: '', flags: 'gi' },
+  { pattern: 'clearance', replace: '', flags: 'gi' },
+  { pattern: 'タイムセール', replace: '', flags: 'g' },
+  { pattern: '在庫僅少', replace: '', flags: 'g' },
+  // 虚假数据
+  { pattern: '销量第一', replace: '好評発売中', flags: 'g' },
+  { pattern: '十万好评', replace: '好評', flags: 'g' },
+  { pattern: '全网最低价', replace: 'お得な価格', flags: 'g' },
+  { pattern: '虚构原价', replace: '', flags: 'g' },
+  // 质保/保修
+  { pattern: 'warranty', replace: '', flags: 'gi' },
+  { pattern: 'Money-back', replace: '', flags: 'gi' },
+  { pattern: 'Lifetime Guarantee', replace: '', flags: 'gi' },
+  { pattern: 'refund guarantee', replace: '', flags: 'gi' },
+  { pattern: 'return guarantee', replace: '', flags: 'gi' },
+  { pattern: 'extended warranty', replace: '', flags: 'gi' },
+  { pattern: '质保', replace: '', flags: 'g' },
+  { pattern: '保修', replace: '', flags: 'g' },
+  { pattern: '返品保証', replace: 'アフターサービス', flags: 'g' },
+  { pattern: '長期保証', replace: '品質に自信', flags: 'g' },
+  // 环保无依据
+  { pattern: 'environmental friendly', replace: '', flags: 'gi' },
+  { pattern: 'save energy', replace: '', flags: 'gi' },
+  { pattern: '100%環境に優しい', replace: '', flags: 'g' },
+];
+
+/**
+ * 对 AI 生成的标题做违禁词清洗（确定性代码替代 AI 内嵌规则，省 token）。
+ * 返回 { title, violations }，violations 为命中的违禁词列表。
+ */
+function sanitizeTitleCompliance(title) {
+  let cleaned = String(title || '');
+  const violations = [];
+  for (const rule of TITLE_BLOCKED_WORDS) {
+    const re = new RegExp(rule.pattern, rule.flags);
+    if (re.test(cleaned)) {
+      violations.push(rule.pattern);
+      cleaned = cleaned.replace(re, rule.replace);
+    }
+  }
+  return { title: cleaned, violations };
+}
+
+/**
+ * 根据当前 config.ai.model 创建对应的 AnthropicClient 实例。
+ * 支持 Anthropic / OpenAI 两种协议格式，通过 provider.apiType 自动切换。
+ * - apiType: 'openai' → 智谱 GLM 常规 API（/paas/v4/chat/completions）
+ * - apiType: 'anthropic'（默认）→ LongCat 等 Anthropic 兼容服务
+ */
+function createAIClient(modelOverride) {
   const config = loadConfig();
+  const model = modelOverride || config.ai.model || '';
+  const providers = (config.ai && config.ai.providers) || {};
+  const provider = providers[model] || {};
+  const baseURL = provider.baseURL || config.ai.baseURL || '';
+  const apiKeyEnv = provider.apiKeyEnv || config.ai.apiKeyEnv || 'ZAI_API_KEY';
+  const apiKey = process.env[apiKeyEnv];
+  const maxTokens = Number(config.ai.maxTokens) || 4096;
+  const apiType = provider.apiType || 'anthropic';
+  return new AnthropicClient({ baseURL, apiKey, model, maxTokens, apiType });
+}
+
+/**
+ * 创建快速模型客户端（用于 secondChoice 等简单任务）。
+ */
+function createFastAIClient() {
+  const config = loadConfig();
+  const fastModel = config.ai.fastModel || '';
+  // 如果未配置快速模型或与主模型相同，回退到主模型
+  if (!fastModel || fastModel === config.ai.model) return createAIClient();
+  return createAIClient(fastModel);
+}
+
+/**
+ * 从 provider 配置中读取 apiKeyEnv（用于错误提示）。
+ */
+function resolveApiKeyEnv() {
+  const config = loadConfig();
+  const model = config.ai.model || '';
+  const providers = (config.ai && config.ai.providers) || {};
+  const provider = providers[model] || {};
+  return provider.apiKeyEnv || config.ai.apiKeyEnv || 'ZAI_API_KEY';
+}
+
+async function analyzeAttributes(productInfo, requiredAttributes, knowledgeContext = null, retryCount = 0) {
   const templates = getPromptTemplates();
-  const apiKey = process.env[config.ai.apiKeyEnv || 'ZAI_API_KEY'];
+  const apiKeyEnv = resolveApiKeyEnv();
+  const apiKey = process.env[apiKeyEnv];
 
   if (!apiKey) {
-    return {
-      attributes: requiredAttributes.map((attr) => ({
-        name: attr.name,
-        value: null,
-        confidence: 0,
-        reason: `缺少环境变量 ${config.ai.apiKeyEnv || 'ZAI_API_KEY'}`,
-        need_manual: true
-      }))
-    };
+    throw new Error(`缺少环境变量 ${apiKeyEnv}`);
   }
+
+  const config = loadConfig();
+  const maxRetries = Number(config.ai.maxRetries) || 2;
+  const client = createAIClient();
 
   const payload = {
     productInfo: {
@@ -51,38 +172,36 @@ async function analyzeAttributes(productInfo, requiredAttributes, knowledgeConte
   }
 
   const userText = `请分析下面商品的必填属性，并只返回 JSON。\n${JSON.stringify(payload, null, 2)}`;
+  const system = templates.attributeAnalysisSystem || defaultAnalysisPrompt();
   const requestImages = config.ai.sendImages === false ? [] : (productInfo.images || []);
-  const messagesWithImages = [
-    { role: 'system', content: templates.attributeAnalysisSystem || defaultAnalysisPrompt() },
-    { role: 'user', content: buildVisionContent(userText, requestImages) }
-  ];
 
   try {
-    const content = await postChatCompletion(config, apiKey, messagesWithImages);
+    const tAi = Date.now();
+    const content = await client.completeWithFallback({
+      system,
+      userText,
+      images: requestImages
+    });
+    console.log(`[耗时] analyzeAttributes AI响应: ${Date.now() - tAi}ms, 模型=${client.model}, 字段数=${requiredAttributes.length}${retryCount > 0 ? ` (第${retryCount + 1}次)` : ''}`);
     return normalizeAnalysis(extractJSON(content), requiredAttributes);
   } catch (error) {
-    if (requestImages.length) {
-      console.warn(`[AI] 图片请求失败，改用纯文本重试: ${error.message}`);
-      const textOnlyMessages = [
-        { role: 'system', content: templates.attributeAnalysisSystem || defaultAnalysisPrompt() },
-        { role: 'user', content: userText }
-      ];
-      try {
-        const content = await postChatCompletion(config, apiKey, textOnlyMessages);
-        return normalizeAnalysis(extractJSON(content), requiredAttributes);
-      } catch (retryError) {
-        return failedAnalysis(requiredAttributes, retryError);
-      }
+    if (retryCount < maxRetries) {
+      const waitMs = (retryCount + 1) * 3000;
+      console.warn(`[属性AI] 分析失败 (${retryCount + 1}/${maxRetries + 1}): ${error.message}，${waitMs / 1000}s 后重试...`);
+      await sleep(waitMs);
+      return analyzeAttributes(productInfo, requiredAttributes, knowledgeContext, retryCount + 1);
     }
-    return failedAnalysis(requiredAttributes, error);
+    throw new Error(`属性分析重试 ${maxRetries + 1} 次后仍失败: ${error.message}`);
   }
 }
 
 async function secondChoice(input) {
-  const config = loadConfig();
   const templates = getPromptTemplates();
-  const apiKey = process.env[config.ai.apiKeyEnv || 'ZAI_API_KEY'];
+  const apiKeyEnv = resolveApiKeyEnv();
+  const apiKey = process.env[apiKeyEnv];
   if (!apiKey) return null;
+
+  const client = createAIClient();
 
   const payload = {
     attribute_name: input.attrName || input.attribute_name,
@@ -98,14 +217,14 @@ async function secondChoice(input) {
   };
 
   const userText = `请从 available_options 中选择最合适的一项，并只返回 JSON。\n${JSON.stringify(payload, null, 2)}`;
-  const requestImages = config.ai.sendImages === false ? [] : (payload.images || []);
-  const messages = [
-    { role: 'system', content: templates.secondChoiceSystem || defaultSecondChoicePrompt() },
-    { role: 'user', content: buildVisionContent(userText, requestImages) }
-  ];
+  const system = templates.secondChoiceSystem || defaultSecondChoicePrompt();
 
   try {
-    const content = await postChatCompletion(config, apiKey, messages);
+    const content = await client.completeWithFallback({
+      system,
+      userText,
+      images: payload.images || []
+    });
     const parsed = extractJSON(content);
     return {
       selected_option: parsed.selected_option || parsed.value || null,
@@ -113,163 +232,149 @@ async function secondChoice(input) {
       reason: parsed.reason || 'AI 二次选择'
     };
   } catch (error) {
-    if (requestImages.length) {
-      try {
-        const content = await postChatCompletion(config, apiKey, [
-          { role: 'system', content: templates.secondChoiceSystem || defaultSecondChoicePrompt() },
-          { role: 'user', content: userText }
-        ]);
-        const parsed = extractJSON(content);
-        return {
-          selected_option: parsed.selected_option || parsed.value || null,
-          confidence: Number(parsed.confidence || 0),
-          reason: parsed.reason || 'AI 二次选择'
-        };
-      } catch (_) {
-        return null;
-      }
-    }
     return null;
   }
 }
 
-async function rewriteProductTitles(productInfo) {
-  const config = loadConfig();
+/**
+ * 批量二次选择：一次 AI 调用处理多个字段，减少网络往返。
+ * @param {Array<{attrName, inferredValue, availableOptions, productTitle}>} inputs
+ * @returns {Array<{selected_option, confidence, reason} | null>}
+ */
+async function secondChoiceBatch(inputs, retryCount = 0) {
+  if (!inputs || !inputs.length) return [];
+
   const templates = getPromptTemplates();
-  const apiKey = process.env[config.ai.apiKeyEnv || 'ZAI_API_KEY'];
-  if (!apiKey) {
-    throw new Error(`缺少环境变量 ${config.ai.apiKeyEnv || 'ZAI_API_KEY'}`);
-  }
+  const apiKeyEnv = resolveApiKeyEnv();
+  const apiKey = process.env[apiKeyEnv];
+  if (!apiKey) return inputs.map(() => null);
 
-  const requestImages = config.ai.sendImages === false ? [] : (productInfo.images || []);
-  const systemPrompt = templates.titleRewriteSystem || defaultTitleRewritePrompt();
+  const config = loadConfig();
+  const maxRetries = Number(config.ai.maxRetries) || 2;
 
-  // 第一步：分析原始标题并扩写为丰富的中文/日文关键词描述
-  const expandPayload = {
-    sourceTitle: productInfo.title || '',
-    task: '分析产品标题，提取核心关键词并扩写为丰富的描述性文本，用于后续生成电商标题',
-    requirements: [
-      '提取产品的核心功能、材质、适用场景、目标人群、使用效果、产品卖点',
-      '补充同义词、近义词、相关搜索热词以增加覆盖面',
-      '用中文和日文分别列出所有扩写关键词和描述短语',
-      '不得凭空捏造不存在的功能，必须基于原产品核心属性',
-      '尽量多列关键词，宁多勿少'
-    ],
-    outputFormat: {
-      coreKeywords: '核心关键词列表',
-      expandedChineseText: '用中文扩写的丰富描述文本（至少200字）',
-      expandedJapaneseKeywords: '日文关键词和短语的拼接（至少200字符）'
-    }
-  };
+  // P1-2: 简单匹配任务使用快速模型（如 LongCat-Flash-Chat），提速降本
+  const client = createFastAIClient();
 
-  const expandText = `请分析产品标题并扩写关键词，只返回JSON。\n${JSON.stringify(expandPayload, null, 2)}`;
-  const expandMessages = [
-    { role: 'system', content: '你是一位跨境电商日本市场SEO优化专家，专精于日本电商产品关键词挖掘和扩写。' },
-    { role: 'user', content: buildVisionContent(expandText, requestImages) }
-  ];
+  const payload = inputs.map((input, index) => ({
+    index,
+    attribute_name: input.attrName || '',
+    ai_inferred_value: input.inferredValue || '',
+    available_options: (input.availableOptions || []).slice(0, 30),
+    product_title: input.productTitle || ''
+  }));
 
-  let expandedContext = '';
+  const userText = `请为以下每个属性从 available_options 中选择最合适的一项。返回 JSON 数组，每个元素包含 index、selected_option、confidence、reason。\n\n${JSON.stringify(payload, null, 2)}`;
+  const system = templates.secondChoiceSystem || defaultSecondChoicePrompt();
+
   try {
-    const expandContent = await postChatCompletion(config, apiKey, expandMessages);
-    const expandResult = extractJSON(expandContent);
-    expandedContext = [
-      expandResult.expandedChineseText || '',
-      expandResult.expandedJapaneseKeywords || '',
-      (expandResult.coreKeywords || []).join(' ')
-    ].filter(Boolean).join('\n');
-    console.log(`[标题] 第一步扩写完成，扩写内容 ${expandedContext.length} 字符`);
+    const tAi = Date.now();
+    const content = await client.completeText({ system, userText });
+    console.log(`[耗时] secondChoiceBatch AI响应: ${Date.now() - tAi}ms, 模型=${client.model}${retryCount > 0 ? ` (第${retryCount + 1}次)` : ''}`);
+    const parsed = extractJSON(content);
+    const results = Array.isArray(parsed) ? parsed : (parsed.results || parsed.attributes || []);
+    const byIndex = new Map();
+    for (const r of results) {
+      const idx = Number(r.index);
+      if (!Number.isNaN(idx)) {
+        byIndex.set(idx, {
+          selected_option: r.selected_option || r.value || null,
+          confidence: Number(r.confidence || 0),
+          reason: r.reason || 'AI 二次选择'
+        });
+      }
+    }
+    return inputs.map((_, i) => byIndex.get(i) || null);
   } catch (error) {
-    console.warn(`[标题] 第一步扩写失败: ${error.message}，直接用原始标题`);
+    if (retryCount < maxRetries) {
+      const waitMs = (retryCount + 1) * 2000;
+      console.warn(`[二次选择] 失败 (${retryCount + 1}/${maxRetries + 1}): ${error.message}，${waitMs / 1000}s 后重试...`);
+      await sleep(waitMs);
+      return secondChoiceBatch(inputs, retryCount + 1);
+    }
+    // 重试耗尽仍失败，返回 null 数组（各字段走 fallback/manual）
+    console.warn(`[二次选择] 重试 ${maxRetries + 1} 次后仍失败: ${error.message}`);
+    return inputs.map(() => null);
+  }
+}
+
+async function rewriteProductTitles(productInfo, retryCount = 0) {
+  const templates = getPromptTemplates();
+  const apiKeyEnv = resolveApiKeyEnv();
+  const apiKey = process.env[apiKeyEnv];
+  if (!apiKey) {
+    throw new Error(`缺少环境变量 ${apiKeyEnv}`);
   }
 
-  // 第二步：基于扩写结果生成最终的 150-175 字符日文标题
-  const generatePayload = {
+  const config = loadConfig();
+  const maxRetries = Number(config.ai.maxRetries) || 2; // 默认重试 2 次
+  const client = createAIClient();
+  const requestImages = config.ai.sendImages === false ? [] : (productInfo.images || []);
+  const titleSystemPrompt = templates.titleRewriteSystem || defaultTitleRewritePrompt();
+
+  // 一步完成：分析标题 → 扩写关键词 → 合规校验 → 生成最终标题
+  const payload = {
     sourceTitle: productInfo.title || '',
-    expandedContext: expandedContext || '（无扩写内容，请基于源标题自行扩写）',
-    task: '基于上面的原始标题和扩写关键词，生成符合日本电商SEO的日文标题和英文标题',
-    rules: [
-      'japaneseTitle必须严格控制在150到175个字符之间',
-      'japaneseTitle严禁出现任何标点符号包括逗号句号空格括号等视为纯字符串',
-      '将扩写关键词按权重排序核心词前置长尾词后置语序符合日本搜索习惯',
-      'englishTitle为对应的地道英文翻译',
-      '使用同义词替换重复词汇增加搜索覆盖面',
-      '如果关键词素材不够150字符，继续补充适用场景目标人群材质特征等描述'
-    ],
+    task: '分析产品标题，提取核心关键词，结合日本电商搜索热词进行扩写，同时完成违禁词扫描与合规校验，最终生成符合日本电商SEO的日文标题和英文标题',
     outputFormat: {
-      expandedChineseTitle: '用于扩写的中文标题',
-      japaneseTitle: '无标点150到175字符的纯字符串日文标题',
-      englishTitle: 'English title'
+      expandedChineseTitle: '用于扩写的中文标题理解版本',
+      japaneseTitle: '150到175字符的纯日文字符串，无标点无空格无换行',
+      englishTitle: '对应的跨境电商英文标题'
     }
   };
 
-  const generateText = `请基于扩写素材生成最终标题，只返回JSON。\n${JSON.stringify(generatePayload, null, 2)}`;
-  const generateMessages = [
-    { role: 'system', content: systemPrompt },
-    { role: 'user', content: buildVisionContent(generateText, requestImages) }
-  ];
+  const userText = `请分析并优化以下产品标题，只返回JSON。\n${JSON.stringify(payload, null, 2)}`;
 
   try {
-    const content = await postChatCompletion(config, apiKey, generateMessages);
+    const tAi = Date.now();
+    const content = await client.completeWithFallback({
+      system: titleSystemPrompt,
+      userText,
+      images: requestImages
+    });
+    console.log(`[耗时] rewriteProductTitles AI响应: ${Date.now() - tAi}ms, 模型=${client.model}${retryCount > 0 ? ` (第${retryCount + 1}次)` : ''}`);
     const titles = normalizeTitles(extractJSON(content));
+
+    // 违禁词后处理（确定性代码，替代原 prompt 中的违禁词库，省 token）
+    const jpClean = sanitizeTitleCompliance(titles.japaneseTitle);
+    if (jpClean.violations.length) {
+      console.warn(`[标题] 日文标题命中违禁词 ${jpClean.violations.length} 个，已自动清洗: ${jpClean.violations.slice(0, 5).join(', ')}`);
+    }
+    titles.japaneseTitle = jpClean.title;
+
     if (titles.japaneseTitle.length < 150) {
       console.warn(`[标题] 日文标题 ${titles.japaneseTitle.length} 字符，不足 150`);
     } else {
-      console.log(`[标题] 第二步生成完成: ${titles.japaneseTitle.length} 字符`);
+      console.log(`[标题] 标题生成完成: ${titles.japaneseTitle.length} 字符`);
     }
     return titles;
   } catch (error) {
-    // 如果带图片失败，去掉图片重试
-    if (requestImages.length) {
-      try {
-        const content = await postChatCompletion(config, apiKey, [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: generateText }
-        ]);
-        return normalizeTitles(extractJSON(content));
-      } catch (_) {}
+    // AI 请求失败时重试，达到上限仍失败才抛出异常
+    if (retryCount < maxRetries) {
+      const waitMs = (retryCount + 1) * 3000; // 等 3s、6s 再重试
+      console.warn(`[标题] 标题生成失败 (${retryCount + 1}/${maxRetries + 1}): ${error.message}，${waitMs / 1000}s 后重试...`);
+      await sleep(waitMs);
+      return rewriteProductTitles(productInfo, retryCount + 1);
     }
-    throw error;
+    // 重试耗尽仍失败，抛出异常让上层处理
+    throw new Error(`标题生成重试 ${maxRetries + 1} 次后仍失败: ${error.message}`);
   }
 }
 
-function splitSystemMessage(messages) {
-  const systemParts = [];
-  const remaining = [];
-  for (const msg of messages) {
-    if (msg && msg.role === 'system') {
-      const c = msg.content;
-      systemParts.push(typeof c === 'string' ? c : JSON.stringify(c));
-    } else {
-      remaining.push(msg);
-    }
-  }
-  return { system: systemParts.join('\n\n').trim(), remaining };
-}
-
-async function postChatCompletion(config, apiKey, messages) {
-  if (typeof fetch !== 'function') {
-    throw new Error('当前 Node.js 没有 fetch，请使用 Node.js 18 或更高版本');
-  }
-
-  const endpoint = `${String(config.ai.baseURL || '').replace(/\/$/, '')}/v1/messages`;
-  const { system, remaining } = splitSystemMessage(messages);
-
-  const body = {
-    model: config.ai.model,
-    messages: remaining,
-    max_tokens: Number(config.ai.maxTokens) || 4096,
-    temperature: 0.1
-  };
-  if (system) body.system = system;
-
-  return requestCompletion(endpoint, apiKey, body);
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function normalizeTitles(parsed) {
-  return {
-    japaneseTitle: sanitizeJapaneseTitle(parsed.japaneseTitle || parsed.japanesetitle || parsed['日文标题'] || parsed.productTitle || parsed.title || ''),
-    englishTitle: sanitizeEnglishTitle(parsed.englishTitle || parsed.englishtitle || parsed['英文标题'] || parsed.enTitle || parsed.english || '')
-  };
+  const japaneseTitle = sanitizeJapaneseTitle(parsed.japaneseTitle || parsed.japanesetitle || parsed['日文标题'] || parsed.productTitle || parsed.title || '');
+  let englishTitle = sanitizeEnglishTitle(parsed.englishTitle || parsed.englishtitle || parsed['英文标题'] || parsed.enTitle || parsed.english || '');
+
+  // 安全校验：如果"英文标题"实际包含日文（假名/汉字），说明 AI 返回了错误内容，丢弃
+  if (englishTitle && /[぀-ゟ゠-ヿ一-鿿]/.test(englishTitle)) {
+    console.warn(`[标题] 英文标题包含日文字符，已丢弃: ${englishTitle.slice(0, 40)}...`);
+    englishTitle = '';
+  }
+
+  return { japaneseTitle, englishTitle };
 }
 
 function sanitizeJapaneseTitle(title) {
@@ -290,63 +395,6 @@ function sanitizeEnglishTitle(title) {
     .replace(/\s+/g, ' ')
     .trim();
   return Array.from(cleaned).slice(0, 170).join('').trim();
-}
-
-async function requestCompletion(endpoint, apiKey, body) {
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'anthropic-version': '2023-06-01',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(body)
-  });
-
-  const text = await response.text();
-  if (!response.ok) {
-    throw new Error(`AI 请求失败 ${response.status}: ${text.slice(0, 500)}`);
-  }
-
-  const json = JSON.parse(text);
-  const blocks = Array.isArray(json.content) ? json.content : [];
-  const content = blocks
-    .filter((b) => b && b.type === 'text' && typeof b.text === 'string')
-    .map((b) => b.text)
-    .join('');
-  if (!content) throw new Error(`AI 响应为空: ${text.slice(0, 300)}`);
-  return content;
-}
-
-function buildVisionContent(text, images) {
-  const validImages = (images || []).filter(Boolean).slice(0, 3);
-  if (!validImages.length) return text;
-  return [
-    { type: 'text', text },
-    ...validImages.map((url) => ({
-      type: 'image',
-      source: { type: 'url', url }
-    }))
-  ];
-}
-
-function extractJSON(content) {
-  const raw = String(content || '').trim();
-  const withoutFence = raw
-    .replace(/^```(?:json)?/i, '')
-    .replace(/```$/i, '')
-    .trim();
-
-  try {
-    return JSON.parse(withoutFence);
-  } catch (_) {
-    const start = withoutFence.indexOf('{');
-    const end = withoutFence.lastIndexOf('}');
-    if (start >= 0 && end > start) {
-      return JSON.parse(withoutFence.slice(start, end + 1));
-    }
-    throw new Error(`AI 返回不是可解析 JSON: ${raw.slice(0, 300)}`);
-  }
 }
 
 function normalizeAnalysis(parsed, requiredAttributes) {
@@ -388,9 +436,11 @@ function failedAnalysis(requiredAttributes, error) {
 }
 
 async function analyzeSaveError(errorMessage, productInfo) {
-  const config = loadConfig();
-  const apiKey = process.env[config.ai.apiKeyEnv || 'ZAI_API_KEY'];
+  const apiKeyEnv = resolveApiKeyEnv();
+  const apiKey = process.env[apiKeyEnv];
   if (!apiKey) return { fields: [], corrections: [] };
+
+  const client = createAIClient();
 
   const payload = {
     errorMessage,
@@ -398,15 +448,13 @@ async function analyzeSaveError(errorMessage, productInfo) {
     productCategory: productInfo.categoryName || ''
   };
 
-  const userText = `商品保存时遇到以下错误，请分析错误信息，指出哪些字段有问题，并建议修正值。\n\n${JSON.stringify(payload, null, 2)}\n\n只返回JSON，格式: { "corrections": [{ "fieldName": "字段名", "suggestedValue": "建议值", "reason": "理由" }] }`;
-
-  const messages = [
-    { role: 'system', content: '你是跨境电商商品编辑助手。根据保存失败的错误信息分析需要修正的字段，并建议修正值。只返回严格JSON。' },
-    { role: 'user', content: userText }
-  ];
+  const userText = `商品保存时遇到以下错误，请分析错误信息，指出哪些字段有问题，并建议修正值。\n\n错误信息：${errorMessage}\n产品原标题：${productInfo.title || ''}\n产品类别：${productInfo.categoryName || ''}\n\n注意：\n- 产品标题（产品标题/商品标题）必须是纯日文（150-175字符，无标点无空格）\n- 英文标题必须是纯英文（ASCII字符），不能包含日文、中文或其他非英文字符\n- 如果错误提到"英文标题含有其他语言"，说明英文标题字段混入了日文/中文，需要翻译为纯英文\n- 如果错误提到"产品标题"相关问题，检查是否满足150-175字符要求\n\n只返回JSON，格式: { "corrections": [{ "fieldName": "字段名（如：英文标题、产品标题）", "suggestedValue": "修正后的值", "reason": "修正理由" }] }`;
 
   try {
-    const content = await postChatCompletion(config, apiKey, messages);
+    const content = await client.completeText({
+      system: '你是跨境电商日本站商品编辑助手，熟悉妙手ERP平台的字段校验规则。根据保存失败的错误信息，分析哪些字段不合规，并给出修正值。只返回严格JSON。',
+      userText
+    });
     const parsed = extractJSON(content);
     const corrections = parsed.corrections || [];
     const fields = corrections.map((c) => c.fieldName || c.name || c.field || '').filter(Boolean);
@@ -456,6 +504,10 @@ module.exports = {
   analyzeAttributes,
   analyzeSaveError,
   secondChoice,
+  secondChoiceBatch,
   rewriteProductTitles,
-  extractJSON
+  extractJSON,
+  createAIClient,
+  createFastAIClient,
+  sanitizeTitleCompliance
 };

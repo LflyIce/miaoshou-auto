@@ -45,7 +45,8 @@ async function chooseBestOption({
   availableOptions,
   productTitle,
   images,
-  aiAnalyzer
+  aiAnalyzer,
+  secondChoiceCache = null
 }) {
   const config = loadConfig();
   const synonyms = readJSONSync(resolveRoot('config', 'synonyms.json'), {});
@@ -85,7 +86,15 @@ async function chooseBestOption({
     return ok(fuzzy.option, 'fuzzy', fuzzy.score, `模糊相似度 ${fuzzy.score}`);
   }
 
-  if (aiAnalyzer && typeof aiAnalyzer.secondChoice === 'function') {
+  if (secondChoiceCache && secondChoiceCache.has(attrName)) {
+    // 使用预计算的批量结果，避免重复网络请求
+    const cached = secondChoiceCache.get(attrName);
+    const selected = cached && findOption(cached.selected_option, options);
+    const confidence = Number(cached && cached.confidence || 0);
+    if (selected && confidence >= Number(config.thresholds.aiSecondChoiceScore || 0.7)) {
+      return ok(selected, 'ai_second_choice', confidence, cached.reason || 'AI 二次选择');
+    }
+  } else if (aiAnalyzer && typeof aiAnalyzer.secondChoice === 'function') {
     const aiChoice = await aiAnalyzer.secondChoice({
       attrName,
       inferredValue: value,

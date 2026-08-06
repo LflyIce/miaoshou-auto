@@ -62,9 +62,15 @@ app.on('activate', () => {
 ipcMain.handle('app:load-settings', async () => {
   const config = await readJSON(CONFIG_PATH, {});
   const env = await readEnv(ENV_PATH);
+  // 根据当前选中的模型，读取对应 provider 的 env 变量作为 apiKey
+  const modelName = (config.ai && config.ai.model) || '';
+  const providers = (config.ai && config.ai.providers) || {};
+  const provider = providers[modelName] || null;
+  const apiKeyEnv = (provider && provider.apiKeyEnv) || 'ZAI_API_KEY';
   return {
     config,
-    apiKey: env.ZAI_API_KEY || '',
+    apiKey: env[apiKeyEnv] || '',
+    apiKeyEnv,
     version: app.getVersion(),
     paths: {
       root: RUNTIME_ROOT,
@@ -84,7 +90,6 @@ ipcMain.handle('app:save-settings', async (_event, settings) => {
     headless: Boolean(settings.headless),
     productEditUrl: String(settings.productEditUrl || '').trim(),
     ai: {
-      apiKeyEnv: 'ZAI_API_KEY',
       model: String(settings.model || config.ai && config.ai.model || 'glm-5.1').trim(),
       sendImages: Boolean(settings.sendImages)
     },
@@ -104,8 +109,14 @@ ipcMain.handle('app:save-settings', async (_event, settings) => {
   await fs.mkdir(path.dirname(CONFIG_PATH), { recursive: true });
   await fs.writeFile(CONFIG_PATH, `${JSON.stringify(nextConfig, null, 2)}\n`, 'utf8');
 
+  // 根据选中的模型找到对应 provider，将 API Key 写入正确的 env 变量
+  const modelName = String(settings.model || config.ai && config.ai.model || '').trim();
+  const providers = (config.ai && config.ai.providers) || {};
+  const provider = providers[modelName] || null;
+  const targetEnvVar = (provider && provider.apiKeyEnv) || 'ZAI_API_KEY';
+
   const env = await readEnv(ENV_PATH);
-  env.ZAI_API_KEY = String(settings.apiKey || '').trim();
+  env[targetEnvVar] = String(settings.apiKey || '').trim();
   await writeEnv(ENV_PATH, env);
 
   return { ok: true };
@@ -533,6 +544,12 @@ async function syncBundledDefaults() {
     if (bundled.ai.maxTokens != null && (current.ai || {}).maxTokens !== bundled.ai.maxTokens) {
       ensureAi();
       current.ai.maxTokens = bundled.ai.maxTokens;
+      changed = true;
+    }
+    // ai.providers 整体由打包包维护（开发者键），升级时覆盖
+    if (bundled.ai.providers && JSON.stringify((current.ai || {}).providers) !== JSON.stringify(bundled.ai.providers)) {
+      ensureAi();
+      current.ai.providers = bundled.ai.providers;
       changed = true;
     }
   }

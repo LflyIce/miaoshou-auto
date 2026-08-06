@@ -41,11 +41,11 @@ function loadConfig() {
     productEditUrl: '',
     headless: false,
     ai: {
-      baseURL: 'https://open.bigmodel.cn/api/anthropic',
+      baseURL: 'https://open.bigmodel.cn/api/paas/v4',
       model: 'glm-5.1',
       apiKeyEnv: 'ZAI_API_KEY',
       sendImages: true,
-      maxTokens: 4096
+      maxTokens: 8192
     },
     thresholds: {
       autoSelectScore: 0.85,

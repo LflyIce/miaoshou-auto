@@ -2,14 +2,14 @@ require('dotenv').config();
 
 const fs = require('fs');
 const { chromium } = require('playwright');
-const { analyzeAttributes, analyzeSaveError, rewriteProductTitles, secondChoice } = require('./ai_analyzer');
+const { analyzeAttributes, analyzeSaveError, rewriteProductTitles, secondChoice, secondChoiceBatch } = require('./ai_analyzer');
 const { scanRequiredAttributes } = require('./attribute_scanner');
 const { fillAttribute } = require('./filler');
 const { fillProductTitles } = require('./title_filler');
 const { RunLogger } = require('./logger');
 const { navigateToModule } = require('./module_navigator');
 const { chooseBestOption } = require('./option_matcher');
-const { readProductInfo, readProductLink, readTotalProductCount, readCurrentProductIndex, readCurrentProductImageUrl } = require('./page_reader');
+const { readProductInfo, readProductLink, readTotalProductCount, readCurrentProductIndex, readCurrentProductImageUrl, readCurrentProductOriginalTitle } = require('./page_reader');
 const { CategoryKnowledge, readCurrentCategory } = require('./category_knowledge');
 const { ProductExporter } = require('./product_export');
 const { readSkuTableData, readSpecInputValues } = require('./sku_reader');
@@ -94,7 +94,19 @@ async function main() {
         : `第 ${productIndex} 个`;
       console.log(`\n====== 开始处理${progressLabel}商品 ======`);
       const productSummary = createProductSummary();
-      const result = await processCurrentProduct(page, config, logger, productSummary, { productIndex, categoryKnowledge, exporter });
+      let result;
+      try {
+        result = await processCurrentProduct(page, config, logger, productSummary, { productIndex, categoryKnowledge, exporter });
+      } catch (error) {
+        console.error(`[${productIndex}] 处理失败: ${error.message}`);
+        summary.products += 1;
+        summary.saveFailedProducts += 1;
+        summary.saveFailedTitles = summary.saveFailedTitles || [];
+        summary.saveFailedTitles.push(productSummary.originalTitle || productSummary.productTitle || `(商品${productIndex})`);
+        await logger.save();
+        await categoryKnowledge.save();
+        continue;
+      }
 
       if (result.skipped) {
         summary.products += 1;
@@ -114,7 +126,8 @@ async function main() {
           productSummary.skippedProducts += 1;
         } else {
           productSummary.saveFailedProducts += 1;
-          const failedTitle = productSummary.productTitle || result.productInfo.title || '(未知商品)';
+          // 优先使用原始中文标题（从商品列表读取），其次才是改写后的标题
+          const failedTitle = productSummary.originalTitle || productSummary.productTitle || result.productInfo.title || '(未知商品)';
           productSummary.saveFailedTitles = productSummary.saveFailedTitles || [];
           productSummary.saveFailedTitles.push(failedTitle);
         }
@@ -150,6 +163,7 @@ async function main() {
 function createProductSummary() {
   return {
     productTitle: '',
+    originalTitle: '',
     requiredCount: 0,
     success: 0,
     failed: 0,
@@ -162,6 +176,7 @@ function createProductSummary() {
 
 function mergeProductSummary(total, productSummary) {
   total.productTitle = productSummary.productTitle || total.productTitle;
+  total.originalTitle = productSummary.originalTitle || total.originalTitle || '';
   total.requiredCount += productSummary.requiredCount || 0;
   total.success += productSummary.success || 0;
   total.failed += productSummary.failed || 0;
@@ -177,27 +192,46 @@ function mergeProductSummary(total, productSummary) {
 async function processCurrentProduct(page, config, logger, summary, options = {}) {
   const categoryKnowledge = options.categoryKnowledge;
   const productIndexLabel = options.productIndex ? `商品 ${options.productIndex}` : '当前商品';
+  const _timers = {};
+  const tic = (name) => { _timers[name] = Date.now(); };
+  const toc = (name) => { const ms = Date.now() - (_timers[name] || Date.now()); console.log(`[耗时] ${name}: ${ms}ms`); return ms; };
 
   console.log(`[${productIndexLabel}][1/5] 读取商品标题和图片...`);
+  tic('nav1');
   await navigateToModule(page, {
     name: '产品信息',
     aliases: ['商品信息', '基本信息', '基础信息']
   }).catch(() => ({ success: false }));
+  toc('nav1');
 
+  tic('readInfo');
   const productInfo = await readProductInfo(page);
   summary.productTitle = productInfo.title || '(未读取到标题)';
   console.log(`[页面] 标题: ${summary.productTitle}`);
   console.log(`[页面] 图片数量: ${(productInfo.images || []).length}`);
+  toc('readInfo');
 
-  // 提前从左侧商品列表读取当前商品的图片URL
+  // 提前从左侧商品列表读取当前商品的图片URL和原始标题
   const goodsListImageUrl = await readCurrentProductImageUrl(page);
   if (goodsListImageUrl) {
     console.log(`[图片] 商品列表图片: ${goodsListImageUrl.slice(0, 80)}...`);
   }
+  const originalTitle = await readCurrentProductOriginalTitle(page);
+  if (originalTitle) {
+    console.log(`[原始标题] ${originalTitle.slice(0, 80)}${originalTitle.length > 80 ? '...' : ''}`);
+  }
+  summary.originalTitle = originalTitle || '';
 
   console.log(`[${productIndexLabel}][2/5] 优化并填写产品标题...`);
-  const japaneseTitle = await rewriteAndFillTitles(page, logger, productInfo, summary);
+  // P1-1: 提前启动标题 AI，与后续描述清理/SKU 读取并行
+  tic('titleAI');
+  const needsTitleAI = productInfo.title && !options.corrections?.['英文标题'] && !options.corrections?.['产品标题'];
+  const preTitlePromise = needsTitleAI ? rewriteProductTitles(productInfo) : null;
+  if (preTitlePromise) {
+    console.log(`[标题] 标题 AI 已提前启动，将与后续操作并行执行`);
+  }
 
+  tic('descSku');
   // 清理产品描述：删除文字模块
   try {
     const cleanResult = await cleanDescription(page);
@@ -215,7 +249,7 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
   try {
     earlySkuData = await readSkuTableData(page);
     if (earlySkuData && (earlySkuData.thumbnailUrl || earlySkuData.declaredPrice || earlySkuData.colors.length)) {
-      console.log(`[SKU] 预读取成功: ${earlySkuData.rowCount}行, 规格: ${earlySkuData.colors.join(', ') || '(无)'}, 申报价: ${earlySkuData.declaredPrice || '(无)'}`);
+      console.log(`[SKU] 预读取成功: ${earlySkuData.rowCount}行`);
     }
   } catch (e) {
     console.warn(`[SKU] 预读取失败: ${e.message}`);
@@ -241,11 +275,18 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
   if (skuEdited) {
     editedSpecs = await readSpecInputValues(page);
     if (editedSpecs && editedSpecs.length) {
-      console.log(`[SKU] 编辑后规格: ${editedSpecs.join(', ')}`);
+      console.log(`[SKU] 编辑后规格已读取`);
     } else {
       console.log(`[SKU] 编辑后未读取到规格input值，导出时规格列将留空`);
     }
   }
+  toc('descSku');
+
+  // P1-1: 此时标题 AI 已在后台运行一段时间，await 结果并填写（在导航回产品信息前完成）
+  tic('fillTitle');
+  const japaneseTitle = await rewriteAndFillTitles(page, logger, productInfo, summary, options.corrections || {}, preTitlePromise);
+  toc('fillTitle');
+  console.log(`[耗时] 标题AI总耗时(含并行): ${Date.now() - _timers.titleAI}ms`);
 
   const attributesModule = config.modules && config.modules.attributes
     ? config.modules.attributes
@@ -261,9 +302,11 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
   }
 
   console.log(`[${productIndexLabel}][3/5] 扫描产品属性必填项...`);
+  tic('scan');
   const attributes = await scanRequiredAttributes(page, { errorFields: options.errorFields || [] });
   summary.requiredCount += attributes.length;
   console.log(`[扫描] 必填属性数量: ${attributes.length}`);
+  toc('scan');
   attributes.forEach((attr, index) => {
     const errorText = attr.errorMessage ? ` | 提示 ${attr.errorMessage}` : '';
     console.log(`  ${index + 1}. ${attr.name} | ${attr.controlType} | 选项 ${attr.options.length} | 已填 ${attr.alreadyFilled ? '是' : '否'}${errorText}`);
@@ -349,18 +392,31 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
   }
 
   console.log(`[${productIndexLabel}][4/5] 调用 AI 分析属性值...`);
+  tic('knowledge');
   const knowledgeDecisions = await buildKnowledgeDecisions(todoAttributes, knowledgeReference, productInfo);
   const aiAttributes = todoAttributes.filter((attr) => !knowledgeDecisions.has(attr.name));
   if (knowledgeDecisions.size) {
     console.log(`[Knowledge] Reusing ${knowledgeDecisions.size} attribute value(s) from local category history.`);
   }
+  toc('knowledge');
 
+  tic('attrAI');
   const aiResult = aiAttributes.length
     ? await analyzeAttributes(productInfo, aiAttributes, knowledgeReference)
     : { attributes: [] };
   const aiByName = new Map((aiResult.attributes || []).map((item) => [item.name, item]));
+  toc('attrAI');
 
   console.log(`[${productIndexLabel}][5/5] 匹配页面真实选项并填写...`);
+  tic('batchSc');
+  // 预计算 secondChoice 批量结果，避免 N 次串行 AI 调用
+  const secondChoiceCache = await precomputeSecondChoice(todoAttributes, aiByName, productInfo);
+  if (secondChoiceCache.size) {
+    console.log(`[AI] 批量二次选择完成: ${secondChoiceCache.size} 个字段已缓存`);
+  }
+  toc('batchSc');
+
+  tic('matchFill');
   for (const attr of todoAttributes) {
     const knowledgeDecision = knowledgeDecisions.get(attr.name);
     const ai = knowledgeDecision ? {
@@ -376,7 +432,7 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
     };
 
     try {
-      const finalDecision = knowledgeDecision || await decideFinalValue(attr, ai, productInfo);
+      const finalDecision = knowledgeDecision || await decideFinalValue(attr, ai, productInfo, secondChoiceCache);
       if (!finalDecision.value || finalDecision.method === 'manual_required') {
         summary.failed += 1;
         logger.fail(baseRecord(productInfo, attr, {
@@ -420,8 +476,10 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
       }));
     }
   }
+  toc('matchFill');
 
   // 填写完属性后再次扫描，捕捉因选择某个属性后新出现的关联属性
+  tic('cascadedScan');
   const newAttributes = await scanRequiredAttributes(page, { errorFields: [] });
   const alreadyHandled = new Set(todoAttributes.map((a) => a.name));
   const cascadedAttributes = newAttributes.filter(
@@ -438,10 +496,14 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
       console.log(`[Knowledge] Reusing ${cascadedKnowledgeDecisions.size} cascaded attribute value(s) from local category history.`);
     }
 
+    tic('cascadedAI');
     const cascadedResult = cascadedAiAttributes.length
       ? await analyzeAttributes(productInfo, cascadedAiAttributes, knowledgeReference)
       : { attributes: [] };
     const cascadedAiByName = new Map((cascadedResult.attributes || []).map((item) => [item.name, item]));
+    toc('cascadedAI');
+    // 关联属性也做批量 secondChoice
+    const cascadedSecondChoiceCache = await precomputeSecondChoice(cascadedAttributes, cascadedAiByName, productInfo);
     for (const attr of cascadedAttributes) {
       const knowledgeDecision = cascadedKnowledgeDecisions.get(attr.name);
       const ai = knowledgeDecision ? {
@@ -451,7 +513,7 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
         need_manual: false
       } : cascadedAiByName.get(attr.name) || { value: null, confidence: 0, reason: 'AI 未返回该字段', need_manual: true };
       try {
-        const finalDecision = knowledgeDecision || await decideFinalValue(attr, ai, productInfo);
+        const finalDecision = knowledgeDecision || await decideFinalValue(attr, ai, productInfo, cascadedSecondChoiceCache);
         if (!finalDecision.value || finalDecision.method === 'manual_required') {
           summary.failed += 1;
           logger.fail(baseRecord(productInfo, attr, {
@@ -490,9 +552,11 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
         }));
       }
     }
+    toc('cascadedAttr');
   }
 
   // 在页面仍可用时立即导出产品数据（使用提前读取的SKU数据）
+  tic('export');
   const exporter = options.exporter;
   console.log(`[导出-DEBUG] exporter=${!!exporter}, japaneseTitle=${!!japaneseTitle}, productInfo=${!!productInfo}`);
   if (exporter && (japaneseTitle || productInfo)) {
@@ -517,6 +581,9 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
   } else {
     console.log(`[导出-DEBUG] 跳过导出: exporter=${!!exporter}, hasTitle=${!!japaneseTitle}, hasInfo=${!!productInfo}`);
   }
+  toc('export');
+
+  console.log(`[耗时] ===== 商品处理总耗时: ${Date.now() - _timers.titleAI}ms =====`);
 
   return { productInfo, navigationResult, japaneseTitle };
 }
@@ -648,7 +715,50 @@ function normalizeKnowledgeName(value) {
     .trim();
 }
 
-async function decideFinalValue(attr, ai, productInfo) {
+/**
+ * 批量预计算 secondChoice 结果，返回 Map(attrName -> result)。
+ * 第一遍扫描时先调本地 matcher 收集需要 AI 二次选择的字段，一次性批量调用，
+ * 第二遍用缓存结果完成匹配，避免 N 次串行网络请求。
+ */
+async function precomputeSecondChoice(attributes, aiByName, productInfo) {
+  const t0 = Date.now();
+  const needBatch = attributes.filter((attr) => {
+    if (attr.controlType !== 'select' && attr.controlType !== 'multi_select') return false;
+    const ai = aiByName.get(attr.name);
+    if (!ai || !ai.value) return false;
+    // 快速本地匹配测试：如果本地能精确匹配就不需要 AI
+    const value = String(ai.value || '').trim();
+    const options = (attr.options || []).map((o) => String(o || '').trim()).filter(Boolean);
+    if (!value || !options.length) return false;
+    if (options.includes(value)) return false;
+    return true;
+  });
+
+  if (!needBatch.length) {
+    console.log(`[耗时] precomputeSecondChoice: 无需AI ${Date.now() - t0}ms`);
+    return new Map();
+  }
+
+  const inputs = needBatch.map((attr) => ({
+    attrName: attr.name,
+    inferredValue: aiByName.get(attr.name)?.value || '',
+    availableOptions: attr.options || [],
+    productTitle: productInfo.title || ''
+  }));
+
+  console.log(`[AI] 批量二次选择: ${needBatch.length} 个字段需 AI 判断`);
+  const tAi = Date.now();
+  const results = await secondChoiceBatch(inputs);
+  console.log(`[耗时] secondChoiceBatch AI调用: ${Date.now() - tAi}ms`);
+  const cache = new Map();
+  needBatch.forEach((attr, i) => {
+    if (results[i]) cache.set(attr.name, results[i]);
+  });
+  console.log(`[耗时] precomputeSecondChoice 总耗时: ${Date.now() - t0}ms, 缓存${cache.size}个`);
+  return cache;
+}
+
+async function decideFinalValue(attr, ai, productInfo, secondChoiceCache = null) {
   if (attr.controlType === 'input') {
     if (ai.value == null || ai.value === '') {
       return {
@@ -673,7 +783,8 @@ async function decideFinalValue(attr, ai, productInfo) {
       availableOptions: attr.options,
       productTitle: productInfo.title,
       images: productInfo.images,
-      aiAnalyzer: { secondChoice }
+      aiAnalyzer: { secondChoice },
+      secondChoiceCache
     });
   }
 
@@ -686,7 +797,8 @@ async function decideFinalValue(attr, ai, productInfo) {
         availableOptions: attr.options,
         productTitle: productInfo.title,
         images: productInfo.images,
-        aiAnalyzer: { secondChoice }
+        aiAnalyzer: { secondChoice },
+        secondChoiceCache
       });
     }
 
@@ -700,7 +812,8 @@ async function decideFinalValue(attr, ai, productInfo) {
         availableOptions: attr.options,
         productTitle: productInfo.title,
         images: productInfo.images,
-        aiAnalyzer: { secondChoice }
+        aiAnalyzer: { secondChoice },
+        secondChoiceCache
       });
       if (!decision.value) continue;
       if (!matched.includes(decision.value)) matched.push(decision.value);
@@ -757,7 +870,7 @@ function neutralInputValue(attrName) {
   return '不适用';
 }
 
-async function rewriteAndFillTitles(page, logger, productInfo, summary) {
+async function rewriteAndFillTitles(page, logger, productInfo, summary, corrections = {}, preTitlePromise = null) {
   if (!productInfo.title) {
     logger.fail(baseRecord(productInfo, {
       name: '产品标题',
@@ -772,9 +885,37 @@ async function rewriteAndFillTitles(page, logger, productInfo, summary) {
     return '';
   }
 
+  // 有 AI 修正值时，直接使用修正后的标题（避免再次生成同样的错误标题）
+  if (corrections['英文标题'] || corrections['产品标题']) {
+    const correctedTitles = {
+      japaneseTitle: corrections['产品标题'] || corrections['japaneseTitle'] || '',
+      englishTitle: corrections['英文标题'] || corrections['englishTitle'] || ''
+    };
+    if (correctedTitles.japaneseTitle || correctedTitles.englishTitle) {
+      console.log(`[标题] 使用 AI 修正值：产品标题=${correctedTitles.japaneseTitle.slice(0, 30)}... 英文标题=${correctedTitles.englishTitle.slice(0, 30)}...`);
+      const fillResult = await fillProductTitles(page, correctedTitles);
+      if (fillResult.productTitleFilled) {
+        summary.success += 1;
+        logger.log(baseRecord(productInfo, { name: '产品标题', controlType: 'input', options: [] }, {
+          aiValue: correctedTitles.japaneseTitle, finalValue: correctedTitles.japaneseTitle,
+          matchMethod: 'ai_correction', confidence: 1, status: 'success', reason: '使用 AI 修正值填写产品标题'
+        }));
+      }
+      if (fillResult.englishTitleFilled) {
+        summary.success += 1;
+        logger.log(baseRecord(productInfo, { name: '英文标题', controlType: 'input', options: [] }, {
+          aiValue: correctedTitles.englishTitle, finalValue: correctedTitles.englishTitle,
+          matchMethod: 'ai_correction', confidence: 1, status: 'success', reason: '使用 AI 修正值填写英文标题'
+        }));
+      }
+      return correctedTitles.japaneseTitle || '';
+    }
+  }
+
   let titles;
   try {
-    titles = await rewriteProductTitles(productInfo);
+    // 如果有预启动的 AI promise（并行优化），直接复用；否则现场调用
+    titles = preTitlePromise ? await preTitlePromise : await rewriteProductTitles(productInfo);
   } catch (error) {
     logger.fail(baseRecord(productInfo, {
       name: '产品标题/英文标题',
@@ -938,6 +1079,8 @@ async function saveCurrentProductWithRetry(page, config, logger, productInfo, su
     console.log(`[保存] 从错误信息中提取到字段：${errorFields.join(', ') || '(无)'}`);
 
     let aiErrorFields = [];
+    // 构建修正值映射（传递给重试时使用）
+    const corrections = {};
     try {
       const aiAnalysis = await analyzeSaveError(message, productInfo);
       if (aiAnalysis.corrections && aiAnalysis.corrections.length) {
@@ -946,6 +1089,8 @@ async function saveCurrentProductWithRetry(page, config, logger, productInfo, su
           const fn = c.fieldName || c.name || '';
           if (fn && !errorFields.includes(fn)) errorFields.push(fn);
           if (fn && !aiErrorFields.includes(fn)) aiErrorFields.push(fn);
+          // 保存修正值供重试使用
+          if (fn && c.suggestedValue) corrections[fn] = c.suggestedValue;
         }
       }
     } catch (e) {
@@ -957,7 +1102,8 @@ async function saveCurrentProductWithRetry(page, config, logger, productInfo, su
     await processCurrentProduct(page, config, logger, retrySummary, {
       productIndex: `${productIndex} 重试${attempt}`,
       categoryKnowledge,
-      errorFields
+      errorFields,
+      corrections
     });
     mergeProductSummary(summary, retrySummary);
   }
@@ -995,7 +1141,24 @@ async function tryClickSave(page, config, attempt = 1) {
     if (!(await button.isVisible().catch(() => false))) continue;
     if (await isLocatorDisabled(button)) continue;
     await button.scrollIntoViewIfNeeded().catch(() => {});
-    await button.click({ timeout: 5000 });
+    // 强制点击，绕过确认对话框的 pointer-events 拦截
+    await button.click({ timeout: 5000, force: true });
+
+    // 点击后等待 2s，让校验错误提示有机会渲染
+    await page.waitForTimeout(2000);
+
+    // 检测是否有校验错误提示（.el-message--error）
+    const validationError = await getValidationError(page);
+    if (validationError) {
+      // 有错误 → 点击取消，返回错误信息供修正
+      await clickSaveConfirmCancel(page);
+      console.warn(`[保存] 校验不通过，取消保存：${validationError}`);
+      return { success: false, reason: validationError, validationError: true };
+    }
+
+    // 无错误 → 点击确定确认保存
+    await clickSaveConfirmOk(page);
+
     const feedback = await waitForSaveFeedback(page, config, selector);
     if (feedback.success) {
       console.log(`[保存] 保存成功：${feedback.message || feedback.reason}`);
@@ -1006,6 +1169,41 @@ async function tryClickSave(page, config, attempt = 1) {
   }
   console.warn('[保存] 没有找到【保存修改】按钮。');
   return { success: false, reason: '没有找到【保存修改】按钮' };
+}
+
+/**
+ * 获取校验错误提示文本（.el-message--error）
+ * @returns {string|null} 错误文本，无错误返回 null
+ */
+async function getValidationError(page) {
+  return await page.evaluate(() => {
+    const el = document.querySelector('.el-message--error .el-message__content, .el-message--error p');
+    return el ? (el.innerText || el.textContent || '').trim() || null : null;
+  }).catch(() => null);
+}
+
+/**
+ * 点击保存确认对话框的"确定"按钮
+ */
+async function clickSaveConfirmOk(page) {
+  const okBtn = page.locator('.el-message-box__btns .el-button--primary, .el-message-box__btns button:has-text("确定")').first();
+  if (!(await okBtn.count().catch(() => 0))) return false;
+  if (!(await okBtn.isVisible().catch(() => false))) return false;
+  await okBtn.click({ timeout: 3000 }).catch(() => {});
+  await page.waitForTimeout(500).catch(() => {});
+  return true;
+}
+
+/**
+ * 点击保存确认对话框的"取消"按钮
+ */
+async function clickSaveConfirmCancel(page) {
+  const cancelBtn = page.locator('.el-message-box__btns button:not(.el-button--primary), .el-message-box__btns button:has-text("取消")').first();
+  if (!(await cancelBtn.count().catch(() => 0))) return false;
+  if (!(await cancelBtn.isVisible().catch(() => false))) return false;
+  await cancelBtn.click({ timeout: 3000 }).catch(() => {});
+  await page.waitForTimeout(300).catch(() => {});
+  return true;
 }
 
 async function waitForSaveFeedback(page, config, saveSelector) {
@@ -1428,12 +1626,33 @@ function parseErrorFields(errorMessage) {
       if (field && !fields.includes(field)) fields.push(field);
     }
   }
+
+  // 中文错误信息 → 字段名映射（兜底）
+  const errorFieldMap = [
+    { patterns: [/英文标题/, /英文.*字符/, /英语标题/, /english/i], field: '英文标题' },
+    { patterns: [/产品标题/, /商品标题/, /日语标题/], field: '产品标题' },
+    { patterns: [/价格/, /申报价/], field: '价格' },
+    { patterns: [/重量/], field: '重量' },
+    { patterns: [/SKU/], field: 'SKU' },
+    { patterns: [/类目/, /类别/], field: '类目' },
+    { patterns: [/品牌/], field: '品牌' },
+    { patterns: [/材质/], field: '材质' },
+    { patterns: [/图片/], field: '图片' },
+  ];
+  for (const { patterns: reList, field } of errorFieldMap) {
+    if (reList.some((re) => re.test(text)) && !fields.includes(field)) {
+      fields.push(field);
+    }
+  }
+
   return fields;
 }
 
 function printSummary(summary, logger) {
   console.log('\n====== 本次处理汇总 ======');
-  console.log(`本次最后处理商品：${summary.productTitle}`);
+  // 优先展示原始中文标题，便于人工识别
+  const displayTitle = summary.originalTitle || summary.productTitle || '(未知)';
+  console.log(`本次最后处理商品：${displayTitle}`);
   if (summary.totalProducts > 0) {
     console.log(`商品总数：${summary.totalProducts}`);
   }
@@ -1441,7 +1660,7 @@ function printSummary(summary, logger) {
   console.log(`保存成功商品数：${summary.savedProducts}`);
   console.log(`保存失败跳过商品数：${summary.saveFailedProducts}`);
   if (summary.saveFailedTitles.length) {
-    console.log(`保存失败商品：`);
+    console.log(`保存失败商品（原始标题）：`);
     summary.saveFailedTitles.forEach((title, i) => console.log(`  ${i + 1}. ${title}`));
   }
   console.log(`未保存跳过商品数：${summary.skippedProducts}`);

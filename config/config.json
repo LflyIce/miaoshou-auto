@@ -1,6 +1,6 @@
 {
   "startUrl": "https://erp.91miaoshou.com/",
-  "productEditUrl": "",
+  "productEditUrl": "https://erp.91miaoshou.com/pddkj_choice/collect_box/items",
   "headless": false,
   "browser": {
     "channel": "msedge",
@@ -11,11 +11,51 @@
     }
   },
   "ai": {
-    "baseURL": "https://open.bigmodel.cn/api/anthropic",
-    "model": "glm-5.1",
+    "baseURL": "https://open.bigmodel.cn/api/paas/v4",
+    "model": "LongCat-2.0",
     "apiKeyEnv": "ZAI_API_KEY",
-    "sendImages": true,
-    "maxTokens": 4096
+    "sendImages": false,
+    "maxTokens": 8192,
+    "maxRetries": 2,
+    "fastModel": "LongCat-Flash-Chat",
+    "providers": {
+      "glm-5.1": {
+        "label": "智谱 GLM-5.1",
+        "baseURL": "https://open.bigmodel.cn/api/paas/v4",
+        "apiKeyEnv": "ZAI_API_KEY",
+        "apiType": "openai"
+      },
+      "glm-4-plus": {
+        "label": "智谱 GLM-4-Plus",
+        "baseURL": "https://open.bigmodel.cn/api/paas/v4",
+        "apiKeyEnv": "ZAI_API_KEY",
+        "apiType": "openai"
+      },
+      "glm-4-air": {
+        "label": "智谱 GLM-4-Air",
+        "baseURL": "https://open.bigmodel.cn/api/paas/v4",
+        "apiKeyEnv": "ZAI_API_KEY",
+        "apiType": "openai"
+      },
+      "glm-4-flash": {
+        "label": "智谱 GLM-4-Flash",
+        "baseURL": "https://open.bigmodel.cn/api/paas/v4",
+        "apiKeyEnv": "ZAI_API_KEY",
+        "apiType": "openai"
+      },
+      "LongCat-2.0": {
+        "label": "LongCat-2.0",
+        "baseURL": "https://api.longcat.chat/anthropic/v1",
+        "apiKeyEnv": "LONGCAT_API_KEY",
+        "apiType": "anthropic"
+      },
+      "LongCat-Flash-Chat": {
+        "label": "LongCat-Flash-Chat",
+        "baseURL": "https://api.longcat.chat/anthropic/v1",
+        "apiKeyEnv": "LONGCAT_API_KEY",
+        "apiType": "anthropic"
+      }
+    }
   },
   "thresholds": {
     "autoSelectScore": 0.85,

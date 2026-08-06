@@ -14,6 +14,9 @@ const els = {
   statusDot: document.querySelector('#statusDot'),
   statusText: document.querySelector('#statusText'),
   logOutput: document.querySelector('#logOutput'),
+  progressBar: document.querySelector('#progressBar'),
+  progressFill: document.querySelector('#progressFill'),
+  progressText: document.querySelector('#progressText'),
   loginBtn: document.querySelector('#loginBtn'),
   fillBtn: document.querySelector('#fillBtn'),
   temuLoginBtn: document.querySelector('#temuLoginBtn'),
@@ -26,7 +29,7 @@ const els = {
   saveSettingsBtn: document.querySelector('#saveSettingsBtn'),
   saveMessage: document.querySelector('#saveMessage'),
   apiKeyInput: document.querySelector('#apiKeyInput'),
-  modelInput: document.querySelector('#modelInput'),
+  modelSelect: document.querySelector('#modelSelect'),
   productEditUrlInput: document.querySelector('#productEditUrlInput'),
   maxProductsInput: document.querySelector('#maxProductsInput'),
   saveAfterFillInput: document.querySelector('#saveAfterFillInput'),
@@ -93,6 +96,39 @@ document.querySelectorAll('[data-open]').forEach((button) => {
 
 els.refreshHistoryBtn.addEventListener('click', loadHistory);
 
+// 模型下拉：根据 providers 表填充选项，切换时更新 apiKey 占位符
+// @param {Object} providers — config.ai.providers
+// @param {string} [currentModel] — 当前已选模型，用于回显
+function populateModelSelect(providers, currentModel) {
+  const select = els.modelSelect;
+  const prev = select.value;
+  select.innerHTML = '';
+  const knownKeys = Object.keys(providers);
+  for (const key of knownKeys) {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = providers[key].label || key;
+    select.appendChild(opt);
+  }
+  if (prev && knownKeys.includes(prev)) {
+    select.value = prev;
+  } else if (currentModel && knownKeys.includes(currentModel)) {
+    select.value = currentModel;
+  } else if (knownKeys.length) {
+    select.value = knownKeys[0];
+  }
+  updateApiKeyPlaceholder();
+  select.onchange = updateApiKeyPlaceholder;
+}
+
+function updateApiKeyPlaceholder() {
+  const providers = (window._lastProviders) || {};
+  const key = els.modelSelect.value;
+  const provider = providers[key];
+  const envVar = provider ? provider.apiKeyEnv : 'ZAI_API_KEY';
+  els.apiKeyInput.placeholder = envVar;
+}
+
 // 商品检索：点查找 / 回车立即查；输入时 300ms 防抖实时查
 els.productSearchBtn.addEventListener('click', searchProducts);
 els.productSearchInput.addEventListener('keydown', (event) => {
@@ -124,7 +160,8 @@ async function init() {
   const batch = config.batch || {};
 
   els.apiKeyInput.value = data.apiKey || '';
-  els.modelInput.value = ai.model || 'glm-5.1';
+  window._lastProviders = ai.providers || {};
+  populateModelSelect(window._lastProviders, ai.model);
   els.productEditUrlInput.value = config.productEditUrl || '';
   els.maxProductsInput.value = Number(batch.maxProducts || 0);
   els.saveAfterFillInput.checked = behavior.saveAfterFill !== false;
@@ -219,7 +256,7 @@ async function startTask(taskName) {
 async function saveSettings(options = {}) {
   const settings = {
     apiKey: els.apiKeyInput.value,
-    model: els.modelInput.value,
+    model: els.modelSelect.value,
     productEditUrl: els.productEditUrlInput.value,
     maxProducts: Number(els.maxProductsInput.value || 0),
     saveAfterFill: els.saveAfterFillInput.checked,
@@ -374,4 +411,23 @@ function appendLog(text, type = 'stdout') {
   const prefix = type === 'stderr' ? '[错误] ' : type === 'info' ? '[状态] ' : '';
   els.logOutput.textContent += `${prefix}${text}`;
   els.logOutput.scrollTop = els.logOutput.scrollHeight;
+  updateProgress(text);
+}
+
+// 解析日志中的进度标记 [商品 X][N/5]，更新进度条
+function updateProgress(text) {
+  // 匹配 [商品 1][2/5] 或 [当前商品][3/5] 格式
+  const stepMatch = text.match(/\[(?:商品\s*\d+|当前商品)\]\[(\d)\/5\]/);
+  if (stepMatch) {
+    const step = parseInt(stepMatch[1], 10);
+    const pct = Math.round((step / 5) * 100);
+    els.progressBar.classList.remove('is-hidden');
+    els.progressFill.style.width = `${pct}%`;
+    const stepNames = ['', '读取信息', '优化标题', '扫描属性', '填写属性', '保存商品'];
+    els.progressText.textContent = `步骤 ${step}/5：${stepNames[step] || ''}`;
+  }
+  // 保存成功后隐藏进度条
+  if (/保存成功|已跳过|保存失败/.test(text) && !/失败提示/.test(text)) {
+    setTimeout(() => els.progressBar.classList.add('is-hidden'), 1500);
+  }
 }
