@@ -104,7 +104,8 @@ function createAIClient(modelOverride) {
   const apiKey = process.env[apiKeyEnv];
   const maxTokens = Number(config.ai.maxTokens) || 4096;
   const apiType = provider.apiType || 'anthropic';
-  return new AnthropicClient({ baseURL, apiKey, model, maxTokens, apiType });
+  const timeoutMs = Number(config.ai.timeoutMs) || 0;
+  return new AnthropicClient({ baseURL, apiKey, model, maxTokens, apiType, ...(timeoutMs > 0 ? { timeoutMs } : {}) });
 }
 
 /**

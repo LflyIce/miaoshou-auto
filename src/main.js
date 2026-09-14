@@ -223,13 +223,7 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
   summary.originalTitle = originalTitle || '';
 
   console.log(`[${productIndexLabel}][2/5] 优化并填写产品标题...`);
-  // P1-1: 提前启动标题 AI，与后续描述清理/SKU 读取并行
   tic('titleAI');
-  const needsTitleAI = productInfo.title && !options.corrections?.['英文标题'] && !options.corrections?.['产品标题'];
-  const preTitlePromise = needsTitleAI ? rewriteProductTitles(productInfo) : null;
-  if (preTitlePromise) {
-    console.log(`[标题] 标题 AI 已提前启动，将与后续操作并行执行`);
-  }
 
   tic('descSku');
   // 清理产品描述：删除文字模块
@@ -282,11 +276,11 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
   }
   toc('descSku');
 
-  // P1-1: 此时标题 AI 已在后台运行一段时间，await 结果并填写（在导航回产品信息前完成）
+  // 串行执行：描述清理/SKU 读取/规格编辑完成后，再启动标题 AI 并等待结果
   tic('fillTitle');
-  const japaneseTitle = await rewriteAndFillTitles(page, logger, productInfo, summary, options.corrections || {}, preTitlePromise);
+  const japaneseTitle = await rewriteAndFillTitles(page, logger, productInfo, summary, options.corrections || {});
   toc('fillTitle');
-  console.log(`[耗时] 标题AI总耗时(含并行): ${Date.now() - _timers.titleAI}ms`);
+  console.log(`[耗时] 标题阶段总耗时(串行): ${Date.now() - _timers.titleAI}ms`);
 
   const attributesModule = config.modules && config.modules.attributes
     ? config.modules.attributes
@@ -870,7 +864,7 @@ function neutralInputValue(attrName) {
   return '不适用';
 }
 
-async function rewriteAndFillTitles(page, logger, productInfo, summary, corrections = {}, preTitlePromise = null) {
+async function rewriteAndFillTitles(page, logger, productInfo, summary, corrections = {}) {
   if (!productInfo.title) {
     logger.fail(baseRecord(productInfo, {
       name: '产品标题',
@@ -914,8 +908,7 @@ async function rewriteAndFillTitles(page, logger, productInfo, summary, correcti
 
   let titles;
   try {
-    // 如果有预启动的 AI promise（并行优化），直接复用；否则现场调用
-    titles = preTitlePromise ? await preTitlePromise : await rewriteProductTitles(productInfo);
+    titles = await rewriteProductTitles(productInfo);
   } catch (error) {
     logger.fail(baseRecord(productInfo, {
       name: '产品标题/英文标题',
