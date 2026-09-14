@@ -3,6 +3,9 @@ const { cleanAttributeName, normalizeText, sleep, unique } = require('./utils');
 const OPTION_SELECTORS = [
   '.el-select-dropdown .el-select-dropdown__item',
   '.el-popper .el-select-dropdown__item',
+  '.jx-select-dropdown .jx-select-dropdown__item',
+  '.jx-popper [role="option"]',
+  '.jx-select-dropdown [role="option"]',
   '.ant-select-dropdown .ant-select-item-option',
   '.ant-select-dropdown [role="option"]',
   '[role="listbox"] [role="option"]',
@@ -12,6 +15,7 @@ const OPTION_SELECTORS = [
 
 async function scanRequiredAttributes(page, options = {}) {
   const errorFields = (options.errorFields || []).map((f) => f.replace(/\s+/g, '').toLowerCase());
+  await ensureCategoryPaneReady(page);
   const rows = await page.evaluate((errorFields) => {
     const root = findCategoryAttributeRoot();
     if (!root) return [];
@@ -71,6 +75,14 @@ async function scanRequiredAttributes(page, options = {}) {
     }
 
     function findCategoryAttributeRoot() {
+      // 新版 scroll-menu 页面：直接取"类别&属性"标签所在的 pane，避免误扫"半托管信息"等其他面板
+      const pane = Array.from(document.querySelectorAll('.scroll-menu-pane')).find((el) => {
+        if (!visible(el)) return false;
+        const label = el.querySelector('.scroll-menu-pane__label');
+        return Boolean(label) && isTargetSectionText(normalizedText(label));
+      });
+      if (pane) return pane;
+
       const titleNodes = Array.from(document.querySelectorAll(
         'h1,h2,h3,h4,h5,label,span,div,.title,[class*="title"],[class*="header"],.el-card__header,.ant-card-head-title,.el-collapse-item__header,.ant-collapse-header'
       )).filter((el) => visible(el) && isTargetSectionText(normalizedText(el)));
@@ -145,6 +157,8 @@ async function scanRequiredAttributes(page, options = {}) {
         root.querySelectorAll(selector).forEach((el) => {
           if (seenRows.has(el) || !visible(el)) return;
           if (!isCategoryAttrItem(el) && closestCategoryAttrItem(el, root) && selector !== '.category-attr-item') return;
+          // 通用选择器会命中 jx/el-form-item 的内部结构（__label/__label-wrap/__content），只收集行级元素
+          if (selector === '[class*="form-item"]' && !isRowLevelFormItem(el)) return;
           const text = textOf(el);
           if (!text) return;
           if (!isCategoryAttrItem(el) && text.length > 600) return;
@@ -154,10 +168,23 @@ async function scanRequiredAttributes(page, options = {}) {
         });
       }
 
+      // 容器只有"类名级必填"（token 为 is-required/required）或 category-attr 才遮蔽内部行。
+      // 不能用 isRequiredRow 判断：它扫描后代红色星号伪元素，会让"产品属性"这类分组容器
+      // 因内层必填行的星号被误判为必填，从而吞掉全部内层属性行
       return rows.filter((row) => {
         if (isCategoryAttrItem(row)) return true;
-        return !rows.some((other) => other !== row && other.contains(row));
+        return !rows.some((other) => other !== row && other.contains(row) && (isRequiredClass(other) || isCategoryAttrItem(other)));
       });
+    }
+
+    /** 类名 token 以 form-item 结尾（jx-form-item/el-form-item/pro-form-item），排除 __label 等内部结构 */
+    function isRowLevelFormItem(el) {
+      return String(el.className || '').split(/\s+/).some((token) => /form-item$/.test(token) || token === 'form-item');
+    }
+
+    /** 类名级必填（token 精确为 is-required/required），不含后代星号推断 */
+    function isRequiredClass(el) {
+      return String(el.className || '').split(/\s+/).some((token) => token === 'is-required' || token === 'required');
     }
 
     function isCategoryAttrItem(el) {
@@ -242,6 +269,7 @@ async function scanRequiredAttributes(page, options = {}) {
       if (categoryNameText && categoryNameText.length <= 60) return categoryNameText;
 
       const selectors = [
+        '.jx-form-item__label',
         '.el-form-item__label',
         '.ant-form-item-label label',
         '.ant-form-item-label',
@@ -264,7 +292,7 @@ async function scanRequiredAttributes(page, options = {}) {
 
     function shouldIgnoreName(name, row) {
       const text = `${name} ${textOf(row)}`;
-      if (/发货仓库|运费模板|店铺|模板|保存当前配置|保存模板|模板管理|英语标题|AI生成|产品素材图|图片翻译|图片编辑|导出图片|添加水印|选中前|批量|同步|创建仓库|SKU|价格|库存|产品类别|商品类别|商品类目|产品类目|类目|分类/.test(text)) {
+      if (/发货仓库|运费模板|发布站点|素材语言|发货时效|店铺|模板|保存当前配置|保存模板|模板管理|英语标题|AI生成|产品素材图|图片翻译|图片编辑|导出图片|添加水印|选中前|批量|同步|创建仓库|SKU|价格|库存|产品类别|商品类别|商品类目|产品类目|产品属性|商品属性|类目|分类/.test(text)) {
         const nameClean = name.replace(/\s+/g, '').toLowerCase();
         for (const ef of errorFields) {
           if (nameClean.includes(ef) || ef.includes(nameClean)) return false;
@@ -333,7 +361,7 @@ async function scanRequiredAttributes(page, options = {}) {
       }
 
       const selectedNodes = Array.from(row.querySelectorAll(
-        '.el-tag, .el-select__tags-text, .ant-select-selection-item, [class*="selection-item"], .el-select-dropdown__item.selected, .jx-pro-option.selected'
+        '.el-tag, .el-select__tags-text, .ant-select-selection-item, [class*="selection-item"], .el-select-dropdown__item.selected, .jx-pro-option.selected, .jx-select__placeholder'
       )).map(textOf).filter((text) => text && !isPlaceholderText(text));
       if (selectedNodes.length) return true;
 
@@ -346,6 +374,20 @@ async function scanRequiredAttributes(page, options = {}) {
       });
     }
   }, errorFields);
+
+  if (!rows.length) {
+    // 诊断：输出各 pane 的可见性与行数，便于定位"扫到 0 个属性"的原因
+    const diag = await page.evaluate(() => {
+      const panes = Array.from(document.querySelectorAll('.scroll-menu-pane')).map((el) => {
+        const label = el.querySelector('.scroll-menu-pane__label');
+        const rect = el.getBoundingClientRect();
+        const name = ((label && (label.innerText || label.textContent)) || '').replace(/\s+/g, '') || '(空)';
+        return `${name}[${Math.round(rect.width)}x${Math.round(rect.height)},${el.querySelectorAll('[class*="form-item"]').length}行]`;
+      });
+      return panes.join(' | ');
+    }).catch(() => '');
+    if (diag) console.warn(`[扫描] 0 行诊断 pane列表: ${diag}`);
+  }
 
   for (const row of rows) {
     row.name = cleanAttributeName(row.name);
@@ -371,6 +413,40 @@ async function scanRequiredAttributes(page, options = {}) {
   return rows;
 }
 
+/** 新版 scroll-menu 页面：导航点击后 pane 可能延迟激活/渲染，等待"类别&属性"pane 可见且有表单项 */
+async function ensureCategoryPaneReady(page, timeoutMs = 8000) {
+  const started = Date.now();
+  let retriedClick = false;
+  while (Date.now() - started < timeoutMs) {
+    if (await checkCategoryPaneReady(page)) return true;
+    if (!retriedClick) {
+      // 导航点击可能未生效，用真实点击重试一次
+      const nav = page.locator('.scroll-menu-nav__item')
+        .filter({ hasText: /类别&属性|类目&属性|分类&属性/ }).first();
+      if (await nav.count().catch(() => 0)) {
+        await nav.click({ timeout: 2000 }).catch(() => {});
+        retriedClick = true;
+      }
+    }
+    await sleep(400);
+  }
+  return false;
+}
+
+async function checkCategoryPaneReady(page) {
+  return page.evaluate(() => {
+    const pane = Array.from(document.querySelectorAll('.scroll-menu-pane')).find((el) => {
+      const label = el.querySelector('.scroll-menu-pane__label');
+      if (!label) return false;
+      const rect = label.getBoundingClientRect();
+      const text = String(label.innerText || label.textContent || '').replace(/\s+/g, '');
+      return rect.width > 0 && rect.height > 0 && /类别&属性|类目&属性|分类&属性|类别属性|类目属性/.test(text);
+    });
+    if (!pane) return false;
+    return pane.querySelectorAll('.jx-form-item, [class*="form-item"]').length > 0;
+  }).catch(() => false);
+}
+
 async function readOptionsForAttribute(page, attribute) {
   const row = page.locator(attribute._rowSelector).first();
   if (!(await row.count())) return [];
@@ -393,6 +469,8 @@ async function readOptionsForAttribute(page, attribute) {
 
 async function openSelect(row) {
   const targets = [
+    '.jx-select__wrapper',
+    '.jx-select',
     '.el-select',
     '.ant-select',
     '[role="combobox"]',

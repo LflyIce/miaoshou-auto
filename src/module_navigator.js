@@ -37,6 +37,7 @@ async function navigateToModule(page, moduleConfig = {}) {
 
 async function clickVisibleModuleEntry(page, label) {
   const candidates = [
+    '.scroll-menu-nav__item',
     '[role="tab"]',
     '.el-tabs__item',
     '.ant-tabs-tab',
@@ -75,6 +76,7 @@ async function clickByDomSearch(page, label) {
   return page.evaluate((targetLabel) => {
     const target = normalize(targetLabel);
     const selector = [
+      '.scroll-menu-nav__item',
       '[role="tab"]',
       'button',
       'a',

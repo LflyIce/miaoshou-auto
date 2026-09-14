@@ -12,19 +12,19 @@
   },
   "ai": {
     "baseURL": "https://open.bigmodel.cn/api/paas/v4",
-    "model": "glm-5.3-flash",
+    "model": "glm-5.1",
     "apiKeyEnv": "ZAI_API_KEY",
     "sendImages": false,
-    "maxTokens": 8192,
+    "maxTokens": 16384,
     "timeoutMs": 300000,
     "maxRetries": 2,
     "fastModel": "glm-5.3-flash",
     "providers": {
       "glm-5.1": {
-        "label": "智谱 GLM-5.1",
-        "baseURL": "https://open.bigmodel.cn/api/paas/v4",
+        "label": "智谱 GLM-5.1 (Coding Plan)",
+        "baseURL": "https://open.bigmodel.cn/api/anthropic/v1",
         "apiKeyEnv": "ZAI_API_KEY",
-        "apiType": "openai"
+        "apiType": "anthropic"
       },
       "glm-5.3-flash": {
         "label": "智谱 GLM-5.3-Flash (Coding Plan)",

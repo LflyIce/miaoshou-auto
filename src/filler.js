@@ -3,6 +3,9 @@ const { sleep, toArrayValue } = require('./utils');
 const OPTION_SELECTORS = [
   '.el-select-dropdown .el-select-dropdown__item',
   '.el-popper .el-select-dropdown__item',
+  '.jx-select-dropdown .jx-select-dropdown__item',
+  '.jx-popper [role="option"]',
+  '.jx-select-dropdown [role="option"]',
   '.ant-select-dropdown .ant-select-item-option',
   '.ant-select-dropdown [role="option"]',
   '[role="listbox"] [role="option"]',
@@ -199,7 +202,7 @@ async function getRow(page, attribute) {
     if (await row.count()) return row;
   }
 
-  const candidates = ['.el-form-item', '.ant-form-item', 'tr', 'li'];
+  const candidates = ['.jx-form-item', '.el-form-item', '.ant-form-item', '[class*="form-item"]', 'tr', 'li'];
 
   for (const selector of candidates) {
     const row = page.locator(selector).filter({ hasText: attribute.name }).first();
@@ -210,6 +213,8 @@ async function getRow(page, attribute) {
 
 async function openSelect(row) {
   const targets = [
+    '.jx-select__wrapper',
+    '.jx-select',
     '.el-select',
     '.ant-select',
     '[role="combobox"]',

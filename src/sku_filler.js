@@ -3,6 +3,9 @@ const { sleep } = require('./utils');
 const OPTION_SELECTORS = [
   '.el-select-dropdown .el-select-dropdown__item',
   '.el-popper .el-select-dropdown__item',
+  '.jx-select-dropdown .jx-select-dropdown__item',
+  '.jx-popper [role="option"]',
+  '.jx-select-dropdown [role="option"]',
   '.ant-select-dropdown .ant-select-item-option',
   '.ant-select-dropdown [role="option"]',
   '[role="listbox"] [role="option"]',
@@ -62,7 +65,7 @@ async function markSkuPropertyRows(page, labels) {
 
     const rows = Array.from(document.querySelectorAll('.el-form-item, .ant-form-item, [class*="form-item"]'))
       .filter(visible)
-      .filter((row) => row.querySelector('.spec-box-container, [class*="spec-box"]'));
+      .filter((row) => row.querySelector('.spec-box-container, [class*="spec-box"], .sku-property__content'));
 
     for (const label of targetLabels) {
       const matched = rows.find((row) => normalize(extractLabel(row)).includes(normalize(label)));
@@ -75,12 +78,18 @@ async function markSkuPropertyRows(page, labels) {
     return result;
 
     function extractLabel(row) {
-      const label = row.querySelector(':scope > .el-form-item__label, :scope > label, :scope > .ant-form-item-label label');
+      const label = row.querySelector('.jx-form-item__label, :scope > .el-form-item__label, :scope > label, :scope > .ant-form-item-label label');
       return textOf(label);
     }
 
+    // 新版页面标签为"规格1/规格2"，旧版为"规格一/规格二"，归一化后互通
     function normalize(text) {
-      return String(text || '').replace(/\s+/g, '').replace(/：|:/g, '').trim();
+      return String(text || '')
+        .replace(/\s+/g, '')
+        .replace(/：|:/g, '')
+        .replace(/一/g, '1')
+        .replace(/二/g, '2')
+        .trim();
     }
 
     function textOf(node) {
@@ -100,7 +109,7 @@ async function ensureSkuPropertyTitle(page, propertySelector, targetTitle) {
   const current = await readSkuPropertyTitle(row);
   if (current === targetTitle) return { changed: false };
 
-  const titleSelect = row.locator('.sku-property-title .el-select, .sku-property-title .ant-select, .sku-property-title [role="combobox"], .sku-property-title input[readonly], .sku-property-title .el-input').first();
+  const titleSelect = row.locator('.sku-property-title .jx-select__wrapper, .sku-property-title .jx-select, .sku-property-title .el-select, .sku-property-title .ant-select, .sku-property-title [role="combobox"], .sku-property-title .el-input').first();
   if (!(await titleSelect.count().catch(() => 0))) {
     throw new Error('找不到规格一名称下拉框');
   }
@@ -127,19 +136,28 @@ async function ensureSkuPropertyTitle(page, propertySelector, targetTitle) {
 
 async function readSkuPropertyTitle(row) {
   const input = row.locator('.sku-property-title input, .sku-property-title textarea').first();
-  if (!(await input.count().catch(() => 0))) return '';
-  return String(await input.inputValue().catch(() => '')).trim();
+  if (await input.count().catch(() => 0)) {
+    const value = String(await input.inputValue().catch(() => '')).trim();
+    if (value) return value;
+  }
+  // jx-select 选中值可能只渲染在 placeholder span 里
+  const placeholder = row.locator('.sku-property-title .jx-select__placeholder').first();
+  if (await placeholder.count().catch(() => 0)) {
+    return (await placeholder.innerText().catch(() => '')).trim();
+  }
+  return '';
 }
 
 async function trimSkuPropertyItems(page, propertySelector, keepCount) {
   const row = page.locator(propertySelector).first();
-  const itemSelector = '.spec-box-container .spec-item';
+  const itemSelector = '.spec-box-container .spec-item, .sku-property__content .spec-item, .spec-item';
   let count = await row.locator(itemSelector).count().catch(() => 0);
   let trimmed = 0;
 
   while (count > keepCount) {
     const item = row.locator(itemSelector).nth(count - 1);
-    const deleteIcon = item.locator('.el-icon-delete, .anticon-delete, [class*="delete"]').first();
+    // 新版删除按钮在输入框 append 槽内的垃圾桶图标，旧版为 el/ant 的 delete 图标
+    const deleteIcon = item.locator('.jx-input-group__append .jx-icon, .el-icon-delete, .anticon-delete, [class*="delete"]').first();
     if (!(await deleteIcon.count().catch(() => 0))) {
       throw new Error(`第 ${count} 个规格选项找不到删除按钮`);
     }

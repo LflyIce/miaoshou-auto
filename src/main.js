@@ -2,7 +2,7 @@ require('dotenv').config();
 
 const fs = require('fs');
 const { chromium } = require('playwright');
-const { analyzeAttributes, analyzeSaveError, rewriteProductTitles, secondChoice, secondChoiceBatch } = require('./ai_analyzer');
+const { analyzeAttributes, analyzeSaveError, startTitleGeneration, secondChoice, secondChoiceBatch } = require('./ai_analyzer');
 const { scanRequiredAttributes } = require('./attribute_scanner');
 const { fillAttribute } = require('./filler');
 const { fillProductTitles } = require('./title_filler');
@@ -113,6 +113,13 @@ async function main() {
         summary.skippedProducts += 1;
         await logger.save();
         await categoryKnowledge.save();
+        // 跳过的商品同样要切换到下一个（未保存修改会弹"是否确认离开"，确认即可）
+        const movedSkip = await goToNextProduct(page, config, result.productInfo, productIndex);
+        if (!movedSkip.success) {
+          console.log(`[下一商品] ${movedSkip.reason}`);
+          break;
+        }
+        await waitForNextProductReady(page, result.productInfo, config);
         continue;
       }
 
@@ -225,6 +232,10 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
   console.log(`[${productIndexLabel}][2/5] 优化并填写产品标题...`);
   tic('titleAI');
 
+  // 第一步：立即发起标题 AI 请求（不等待），与随后的 DOM 操作并行
+  const titleTask = startTitleGeneration(productInfo, options.corrections || {});
+  titleTask.catch(() => {}); // 防止 AI 提前失败触发 unhandledRejection，后续 await 会得到同样的异常
+
   tic('descSku');
   // 清理产品描述：删除文字模块
   try {
@@ -276,11 +287,11 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
   }
   toc('descSku');
 
-  // 串行执行：描述清理/SKU 读取/规格编辑完成后，再启动标题 AI 并等待结果
+  // DOM 操作（描述清理/SKU/规格）与标题 AI 并行；此时已全部完成，等待 AI 结果并填写标题
   tic('fillTitle');
-  const japaneseTitle = await rewriteAndFillTitles(page, logger, productInfo, summary, options.corrections || {});
+  const japaneseTitle = await rewriteAndFillTitles(page, logger, productInfo, summary, options.corrections || {}, titleTask);
   toc('fillTitle');
-  console.log(`[耗时] 标题阶段总耗时(串行): ${Date.now() - _timers.titleAI}ms`);
+  console.log(`[耗时] 标题阶段总耗时(并行): ${Date.now() - _timers.titleAI}ms`);
 
   const attributesModule = config.modules && config.modules.attributes
     ? config.modules.attributes
@@ -342,7 +353,8 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
     }));
   }
 
-  const skipAttr = attributes.find((attr) => /尺码|サイズ/i.test(attr.name) && !attr.alreadyFilled && !attr.options.length);
+  // 尺码类商品（需人工维护尺码表）直接跳过：必填且未填的尺码/サイズ字段，无论有无选项
+  const skipAttr = attributes.find((attr) => /尺码|サイズ/i.test(attr.name) && !attr.alreadyFilled);
   if (skipAttr) {
     console.warn(`[跳过] 字段【${skipAttr.name}】无可选选项，跳过当前商品。`);
     logger.log(baseRecord(productInfo, skipAttr, {
@@ -864,7 +876,7 @@ function neutralInputValue(attrName) {
   return '不适用';
 }
 
-async function rewriteAndFillTitles(page, logger, productInfo, summary, corrections = {}) {
+async function rewriteAndFillTitles(page, logger, productInfo, summary, corrections = {}, titleTask = null) {
   if (!productInfo.title) {
     logger.fail(baseRecord(productInfo, {
       name: '产品标题',
@@ -879,36 +891,10 @@ async function rewriteAndFillTitles(page, logger, productInfo, summary, correcti
     return '';
   }
 
-  // 有 AI 修正值时，直接使用修正后的标题（避免再次生成同样的错误标题）
-  if (corrections['英文标题'] || corrections['产品标题']) {
-    const correctedTitles = {
-      japaneseTitle: corrections['产品标题'] || corrections['japaneseTitle'] || '',
-      englishTitle: corrections['英文标题'] || corrections['englishTitle'] || ''
-    };
-    if (correctedTitles.japaneseTitle || correctedTitles.englishTitle) {
-      console.log(`[标题] 使用 AI 修正值：产品标题=${correctedTitles.japaneseTitle.slice(0, 30)}... 英文标题=${correctedTitles.englishTitle.slice(0, 30)}...`);
-      const fillResult = await fillProductTitles(page, correctedTitles);
-      if (fillResult.productTitleFilled) {
-        summary.success += 1;
-        logger.log(baseRecord(productInfo, { name: '产品标题', controlType: 'input', options: [] }, {
-          aiValue: correctedTitles.japaneseTitle, finalValue: correctedTitles.japaneseTitle,
-          matchMethod: 'ai_correction', confidence: 1, status: 'success', reason: '使用 AI 修正值填写产品标题'
-        }));
-      }
-      if (fillResult.englishTitleFilled) {
-        summary.success += 1;
-        logger.log(baseRecord(productInfo, { name: '英文标题', controlType: 'input', options: [] }, {
-          aiValue: correctedTitles.englishTitle, finalValue: correctedTitles.englishTitle,
-          matchMethod: 'ai_correction', confidence: 1, status: 'success', reason: '使用 AI 修正值填写英文标题'
-        }));
-      }
-      return correctedTitles.japaneseTitle || '';
-    }
-  }
-
+  // titleTask 由流程开头提前发起（AI 与 DOM 操作并行）；未传入时在此现场生成
   let titles;
   try {
-    titles = await rewriteProductTitles(productInfo);
+    titles = await (titleTask || startTitleGeneration(productInfo, corrections));
   } catch (error) {
     logger.fail(baseRecord(productInfo, {
       name: '产品标题/英文标题',
@@ -922,6 +908,13 @@ async function rewriteAndFillTitles(page, logger, productInfo, summary, correcti
     }));
     return '';
   }
+  if (!titles) return '';
+
+  // corrections 命中时直接使用修正值（避免再次生成同样的错误标题）
+  const isCorrection = Boolean(titles.__corrected);
+  if (isCorrection) {
+    console.log(`[标题] 使用 AI 修正值：产品标题=${(titles.japaneseTitle || '').slice(0, 30)}... 英文标题=${(titles.englishTitle || '').slice(0, 30)}...`);
+  }
 
   const fillResult = await fillProductTitles(page, titles);
 
@@ -934,10 +927,10 @@ async function rewriteAndFillTitles(page, logger, productInfo, summary, correcti
     }, {
       aiValue: titles.japaneseTitle,
       finalValue: titles.japaneseTitle,
-      matchMethod: 'title_rewrite',
+      matchMethod: isCorrection ? 'ai_correction' : 'title_rewrite',
       confidence: 1,
       status: 'success',
-      reason: '已按日本搜索习惯扩写并填写日语标题'
+      reason: isCorrection ? '使用 AI 修正值填写产品标题' : '已按日本搜索习惯扩写并填写日语标题'
     }));
   } else if (titles.japaneseTitle) {
     summary.failed += 1;
@@ -963,10 +956,10 @@ async function rewriteAndFillTitles(page, logger, productInfo, summary, correcti
     }, {
       aiValue: titles.englishTitle,
       finalValue: titles.englishTitle,
-      matchMethod: 'title_rewrite',
+      matchMethod: isCorrection ? 'ai_correction' : 'title_rewrite',
       confidence: 1,
       status: 'success',
-      reason: '已按日本搜索习惯扩写并填写英文标题'
+      reason: isCorrection ? '使用 AI 修正值填写英文标题' : '已按日本搜索习惯扩写并填写英文标题'
     }));
   } else if (titles.englishTitle) {
     summary.failed += 1;
@@ -1048,6 +1041,12 @@ async function saveCurrentProductWithRetry(page, config, logger, productInfo, su
     lastResult = await tryClickSave(page, config, attempt);
     if (lastResult.success) return lastResult;
 
+    // 按钮缺失属于选择器/页面结构问题，AI 修正与重扫无意义，直接失败
+    if (lastResult.buttonNotFound) {
+      console.error('[保存] 页面上没有可见的保存按钮，跳过 AI 分析与重试。');
+      break;
+    }
+
     const message = lastResult.message || lastResult.reason || '未读取到保存失败原因';
     const screenshot = await maybeScreenshot(page, config, `save_failed_${productIndex}_${attempt}`);
     logger.fail(baseRecord(productInfo, {
@@ -1128,40 +1127,45 @@ async function tryClickSave(page, config, attempt = 1) {
     '.ant-btn:has-text("保存")',
     'button:has-text("提交")'
   ];
+  // 页面上可能同时存在多个"保存修改"按钮（隐藏弹窗的 footer 在 DOM 前部，真实按钮在页面底部），
+  // 必须遍历所有匹配取第一个可见可用的，不能只看 .first()
   for (const selector of candidates) {
-    const button = page.locator(selector).first();
-    if (!(await button.count().catch(() => 0))) continue;
-    if (!(await button.isVisible().catch(() => false))) continue;
-    if (await isLocatorDisabled(button)) continue;
-    await button.scrollIntoViewIfNeeded().catch(() => {});
-    // 强制点击，绕过确认对话框的 pointer-events 拦截
-    await button.click({ timeout: 5000, force: true });
+    const buttons = page.locator(selector);
+    const total = await buttons.count().catch(() => 0);
+    for (let i = 0; i < Math.min(total, 8); i += 1) {
+      const button = buttons.nth(i);
+      if (!(await button.isVisible().catch(() => false))) continue;
+      if (await isLocatorDisabled(button)) continue;
+      await button.scrollIntoViewIfNeeded().catch(() => {});
+      // 强制点击，绕过确认对话框的 pointer-events 拦截
+      await button.click({ timeout: 5000, force: true });
 
-    // 点击后等待 2s，让校验错误提示有机会渲染
-    await page.waitForTimeout(2000);
+      // 点击后等待 2s，让校验错误提示有机会渲染
+      await page.waitForTimeout(2000);
 
-    // 检测是否有校验错误提示（.el-message--error）
-    const validationError = await getValidationError(page);
-    if (validationError) {
-      // 有错误 → 点击取消，返回错误信息供修正
-      await clickSaveConfirmCancel(page);
-      console.warn(`[保存] 校验不通过，取消保存：${validationError}`);
-      return { success: false, reason: validationError, validationError: true };
+      // 检测是否有校验错误提示（.el-message--error）
+      const validationError = await getValidationError(page);
+      if (validationError) {
+        // 有错误 → 点击取消，返回错误信息供修正
+        await clickSaveConfirmCancel(page);
+        console.warn(`[保存] 校验不通过，取消保存：${validationError}`);
+        return { success: false, reason: validationError, validationError: true };
+      }
+
+      // 无错误 → 点击确定确认保存
+      await clickSaveConfirmOk(page);
+
+      const feedback = await waitForSaveFeedback(page, config, selector);
+      if (feedback.success) {
+        console.log(`[保存] 保存成功：${feedback.message || feedback.reason}`);
+      } else {
+        console.warn(`[保存] 保存失败：${feedback.message || feedback.reason}`);
+      }
+      return feedback;
     }
-
-    // 无错误 → 点击确定确认保存
-    await clickSaveConfirmOk(page);
-
-    const feedback = await waitForSaveFeedback(page, config, selector);
-    if (feedback.success) {
-      console.log(`[保存] 保存成功：${feedback.message || feedback.reason}`);
-    } else {
-      console.warn(`[保存] 保存失败：${feedback.message || feedback.reason}`);
-    }
-    return feedback;
   }
-  console.warn('[保存] 没有找到【保存修改】按钮。');
-  return { success: false, reason: '没有找到【保存修改】按钮' };
+  console.warn('[保存] 没有找到可见的【保存修改】按钮。');
+  return { success: false, reason: '没有找到可见的【保存修改】按钮', buttonNotFound: true };
 }
 
 /**
@@ -1170,7 +1174,7 @@ async function tryClickSave(page, config, attempt = 1) {
  */
 async function getValidationError(page) {
   return await page.evaluate(() => {
-    const el = document.querySelector('.el-message--error .el-message__content, .el-message--error p');
+    const el = document.querySelector('.el-message--error .el-message__content, .el-message--error p, .jx-message--error .jx-message__content, .jx-message--error p');
     return el ? (el.innerText || el.textContent || '').trim() || null : null;
   }).catch(() => null);
 }
@@ -1179,24 +1183,33 @@ async function getValidationError(page) {
  * 点击保存确认对话框的"确定"按钮
  */
 async function clickSaveConfirmOk(page) {
-  const okBtn = page.locator('.el-message-box__btns .el-button--primary, .el-message-box__btns button:has-text("确定")').first();
-  if (!(await okBtn.count().catch(() => 0))) return false;
-  if (!(await okBtn.isVisible().catch(() => false))) return false;
-  await okBtn.click({ timeout: 3000 }).catch(() => {});
-  await page.waitForTimeout(500).catch(() => {});
-  return true;
+  // 可能有多个同名确认框（含隐藏残留），遍历取第一个可见的
+  const okBtns = page.locator('.el-message-box__btns .el-button--primary, .el-message-box__btns button:has-text("确定"), .jx-message-box__btns .jx-button--primary, .jx-message-box__btns button:has-text("确定")');
+  const total = await okBtns.count().catch(() => 0);
+  for (let i = 0; i < Math.min(total, 4); i += 1) {
+    const button = okBtns.nth(i);
+    if (!(await button.isVisible().catch(() => false))) continue;
+    await button.click({ timeout: 3000 }).catch(() => {});
+    await page.waitForTimeout(500).catch(() => {});
+    return true;
+  }
+  return false;
 }
 
 /**
  * 点击保存确认对话框的"取消"按钮
  */
 async function clickSaveConfirmCancel(page) {
-  const cancelBtn = page.locator('.el-message-box__btns button:not(.el-button--primary), .el-message-box__btns button:has-text("取消")').first();
-  if (!(await cancelBtn.count().catch(() => 0))) return false;
-  if (!(await cancelBtn.isVisible().catch(() => false))) return false;
-  await cancelBtn.click({ timeout: 3000 }).catch(() => {});
-  await page.waitForTimeout(300).catch(() => {});
-  return true;
+  const cancelBtns = page.locator('.el-message-box__btns button:not(.el-button--primary), .el-message-box__btns button:has-text("取消"), .jx-message-box__btns button:not(.jx-button--primary), .jx-message-box__btns button:has-text("取消")');
+  const total = await cancelBtns.count().catch(() => 0);
+  for (let i = 0; i < Math.min(total, 4); i += 1) {
+    const button = cancelBtns.nth(i);
+    if (!(await button.isVisible().catch(() => false))) continue;
+    await button.click({ timeout: 3000 }).catch(() => {});
+    await page.waitForTimeout(300).catch(() => {});
+    return true;
+  }
+  return false;
 }
 
 async function waitForSaveFeedback(page, config, saveSelector) {
@@ -1205,6 +1218,8 @@ async function waitForSaveFeedback(page, config, saveSelector) {
 
   while (Date.now() - started < timeout) {
     await page.waitForTimeout(500).catch(() => {});
+    // 保存过程中可能弹出"信息未填写完整，是否继续保存"确认框，自动点确定后继续等结果
+    await clickSaveConfirmOk(page);
     const message = await collectFeedbackText(page);
     if (message) {
       const result = classifySaveFeedback(message);
@@ -1237,6 +1252,8 @@ async function collectFeedbackText(page) {
       '.el-message',
       '.el-message-box',
       '.el-message-box__message',
+      '.jx-message',
+      '.jx-message__content',
       '.el-notification',
       '.ant-message',
       '.ant-notification',
@@ -1324,7 +1341,7 @@ async function goToNextProduct(page, config, productInfo, productIndex) {
 
   const beforeUrl = page.url();
   const beforeTitle = await page.evaluate(() => {
-    const active = document.querySelector('.goods-item.active, .goods-item.selected, .goods-item.current');
+    const active = document.querySelector('.goods-item.is-active, .goods-item.active, .goods-item.selected, .goods-item.current');
     const titleNode = active && active.querySelector('.item-title, [title]');
     return titleNode ? (titleNode.getAttribute('title') || titleNode.textContent || '').trim() : '';
   }).catch(() => '');
@@ -1333,12 +1350,17 @@ async function goToNextProduct(page, config, productInfo, productIndex) {
   if (clickedGoodsList) {
     await confirmLeaveIfPrompted(page);
     const goodsUrlChanged = page.url() !== beforeUrl;
-    const goodsTitleChanged = await page.evaluate((oldTitle) => {
-      const active = document.querySelector('.goods-item.active, .goods-item.selected, .goods-item.current');
-      const titleNode = active && active.querySelector('.item-title, [title]');
-      const newTitle = titleNode ? (titleNode.getAttribute('title') || titleNode.textContent || '').trim() : '';
-      return newTitle && newTitle !== oldTitle;
-    }, beforeTitle).catch(() => false);
+    // 确认切换后商品加载需要时间，轮询等待 active 标题变化（最多约8秒）
+    let goodsTitleChanged = false;
+    for (let t = 0; t < 10 && !goodsTitleChanged; t += 1) {
+      goodsTitleChanged = await page.evaluate((oldTitle) => {
+        const active = document.querySelector('.goods-item.is-active, .goods-item.active, .goods-item.selected, .goods-item.current');
+        const titleNode = active && active.querySelector('.item-title, [title]');
+        const newTitle = titleNode ? (titleNode.getAttribute('title') || titleNode.textContent || '').trim() : '';
+        return Boolean(newTitle) && newTitle !== oldTitle;
+      }, beforeTitle).catch(() => false);
+      if (!goodsTitleChanged) await page.waitForTimeout(800).catch(() => {});
+    }
     if (goodsUrlChanged || goodsTitleChanged) {
       return { success: true, method: 'goods_list', title: clickedGoodsList.title || '' };
     }
@@ -1455,15 +1477,15 @@ async function clickNextInGoodsList(page) {
     console.log(`[下一商品] 已点击商品列表下一项${result.title ? `：${result.title}` : ''}`);
     const started = Date.now();
     let activeChanged = false;
-    while (Date.now() - started < 6000) {
+    while (Date.now() - started < 12000) {
       await page.waitForTimeout(400).catch(() => {});
 
       const dismissed = await page.evaluate(() => {
-        const popup = document.querySelector('.el-message-box');
+        const popup = document.querySelector('.el-message-box, .jx-message-box');
         if (!popup || popup.offsetWidth === 0) return false;
         const text = popup.textContent || '';
         if (!text.includes('切换') && !text.includes('保存修改')) return false;
-        const btn = popup.querySelector('.el-button--primary');
+        const btn = popup.querySelector('.el-button--primary, .jx-button--primary');
         if (btn) { btn.click(); return true; }
         return false;
       }).catch(() => false);
@@ -1473,7 +1495,7 @@ async function clickNextInGoodsList(page) {
       }
 
       activeChanged = await page.evaluate((clickedTitle) => {
-        const active = document.querySelector('.goods-list-box .goods-item.active, .goods-item.active');
+        const active = document.querySelector('.goods-list-box .goods-item.is-active, .goods-item.is-active, .goods-list-box .goods-item.active, .goods-item.active');
         const titleNode = active && active.querySelector('.item-title, [title]');
         const title = titleNode ? (titleNode.getAttribute('title') || titleNode.textContent || '').trim() : '';
         return clickedTitle ? Boolean(title) && (title.includes(clickedTitle) || clickedTitle.includes(title)) : Boolean(active);
@@ -1482,7 +1504,15 @@ async function clickNextInGoodsList(page) {
     }
 
     if (!activeChanged) {
-      console.warn('[下一商品] 已触发点击，但没有检测到商品列表 active 状态变化。');
+      const state = await page.evaluate(() => {
+        const active = document.querySelector('.goods-item.is-active, .goods-item.active');
+        const titleNode = active && active.querySelector('.item-title, [title]');
+        return {
+          有激活项: Boolean(active),
+          当前标题: titleNode ? String(titleNode.getAttribute('title') || titleNode.textContent || '').trim().slice(0, 40) : ''
+        };
+      }).catch(() => ({}));
+      console.warn(`[下一商品] 已触发点击，但没有检测到商品列表 active 状态变化。当前列表状态: ${JSON.stringify(state)}`);
       return false;
     }
 
@@ -1551,6 +1581,9 @@ async function confirmLeaveIfPrompted(page) {
     '.el-message-box__btns button:has-text("不保存")',
     '.el-message-box__btns button:has-text("继续")',
     '.el-message-box__btns button:has-text("确定")',
+    '.jx-message-box__btns button:has-text("不保存")',
+    '.jx-message-box__btns button:has-text("继续")',
+    '.jx-message-box__btns button:has-text("确定")',
     '.ant-modal-footer button:has-text("不保存")',
     '.ant-modal-footer button:has-text("继续")',
     '.ant-modal-footer button:has-text("确定")',

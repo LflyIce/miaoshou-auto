@@ -298,6 +298,19 @@ async function secondChoiceBatch(inputs, retryCount = 0) {
   }
 }
 
+/**
+ * 提前发起标题生成，与 DOM 操作（描述清理/SKU/规格编辑）并行。
+ * corrections 命中时直接返回修正值（不调 AI）；返回的 titles 带 __corrected 标记供日志区分。
+ */
+function startTitleGeneration(productInfo, corrections = {}) {
+  const japaneseTitle = corrections['产品标题'] || corrections['japaneseTitle'] || '';
+  const englishTitle = corrections['英文标题'] || corrections['englishTitle'] || '';
+  if (japaneseTitle || englishTitle) {
+    return Promise.resolve({ japaneseTitle, englishTitle, __corrected: true });
+  }
+  return rewriteProductTitles(productInfo);
+}
+
 async function rewriteProductTitles(productInfo, retryCount = 0) {
   const templates = getPromptTemplates();
   const apiKeyEnv = resolveApiKeyEnv();
@@ -317,7 +330,6 @@ async function rewriteProductTitles(productInfo, retryCount = 0) {
     sourceTitle: productInfo.title || '',
     task: '分析产品标题，提取核心关键词，结合日本电商搜索热词进行扩写，同时完成违禁词扫描与合规校验，最终生成符合日本电商SEO的日文标题和英文标题',
     outputFormat: {
-      expandedChineseTitle: '用于扩写的中文标题理解版本',
       japaneseTitle: '150到175字符的纯日文字符串，无标点无空格无换行',
       englishTitle: '对应的跨境电商英文标题'
     }
@@ -497,7 +509,7 @@ function defaultTitleRewritePrompt() {
     '- japaneseTitle必须是150到175个字符的纯字符串，严禁任何标点符号和空格',
     '- 如果源标题是日语先翻译成中文理解再扩写',
     '- 不包含换行符emoji品牌名或虚假宣传',
-    '- 只返回严格JSON，包含expandedChineseTitle、japaneseTitle、englishTitle三个字段'
+    '- 只返回严格JSON，包含japaneseTitle、englishTitle两个字段'
   ].join('\n');
 }
 
@@ -507,6 +519,7 @@ module.exports = {
   secondChoice,
   secondChoiceBatch,
   rewriteProductTitles,
+  startTitleGeneration,
   extractJSON,
   createAIClient,
   createFastAIClient,
