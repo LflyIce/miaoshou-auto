@@ -212,6 +212,7 @@ async function getRow(page, attribute) {
 }
 
 async function openSelect(row) {
+  // 注意：不兜底裸 input——宽泛匹配会点到行外的元素（如左侧商品列表），误触"是否确认离开"弹窗
   const targets = [
     '.jx-select__wrapper',
     '.jx-select',
@@ -220,8 +221,7 @@ async function openSelect(row) {
     '[role="combobox"]',
     '.el-input',
     '.ant-select-selector',
-    'input[readonly]',
-    'input'
+    'input[readonly]'
   ];
   for (const selector of targets) {
     const locator = row.locator(selector);

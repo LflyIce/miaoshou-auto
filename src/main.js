@@ -265,6 +265,31 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
   let skuEdited = false;
   try {
     const skuResult = await fillSkuProperties(page);
+    if (skuResult.status === 'skip_product') {
+      console.warn(`[规格] ${skuResult.reason}`);
+      logger.log(baseRecord(productInfo, { name: 'SKU规格', controlType: 'none', options: [] }, {
+        status: 'skipped',
+        reason: skuResult.reason
+      }));
+      summary.skipped += 1;
+      const exporterSkip = options.exporter;
+      if (exporterSkip) {
+        try {
+          const skuData = earlySkuData || { colors: [], declaredPrice: '', thumbnailUrl: '', rowCount: 0 };
+          exporterSkip.addProduct({
+            imageUrl: goodsListImageUrl || skuData.thumbnailUrl || (productInfo.images && productInfo.images[0]) || '',
+            productUrl: earlyProductLink || productInfo.url || '',
+            japaneseTitle: '',
+            specifications: '',
+            declaredPrice: skuData.declaredPrice
+          });
+          await exporterSkip.save();
+        } catch (e) {
+          console.warn(`[导出] 跳过商品导出失败: ${e.message}`);
+        }
+      }
+      return { productInfo, navigationResult: { success: true }, skipped: true };
+    }
     if (skuResult.status === 'success' && skuResult.changed) {
       skuEdited = true;
       console.log(`[规格] 编辑完成: 规格一${skuResult.specOneTitleChanged ? '标题已改' : ''}删除${skuResult.specOneTrimmed}项, 规格二删除${skuResult.specTwoTrimmed}项`);
@@ -424,6 +449,8 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
 
   tic('matchFill');
   for (const attr of todoAttributes) {
+    // 填写前处理可能意外弹出的弹窗（如"是否确认离开"），避免挡住下拉点击
+    await dismissBlockingDialogs(page);
     const knowledgeDecision = knowledgeDecisions.get(attr.name);
     const ai = knowledgeDecision ? {
       value: knowledgeDecision.sourceValue,
@@ -511,6 +538,8 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
     // 关联属性也做批量 secondChoice
     const cascadedSecondChoiceCache = await precomputeSecondChoice(cascadedAttributes, cascadedAiByName, productInfo);
     for (const attr of cascadedAttributes) {
+      // 填写前处理可能意外弹出的弹窗，避免挡住下拉点击
+      await dismissBlockingDialogs(page);
       const knowledgeDecision = cascadedKnowledgeDecisions.get(attr.name);
       const ai = knowledgeDecision ? {
         value: knowledgeDecision.sourceValue,
@@ -1047,6 +1076,12 @@ async function saveCurrentProductWithRetry(page, config, logger, productInfo, su
       break;
     }
 
+    // SKU 规格值超长等无法通过重填属性修复的错误，重试也必然同样失败，直接跳过
+    if (/SKU信息规格选项.*长度应不大于/.test(message)) {
+      console.error('[保存] SKU规格值超长，无法自动修复，跳过重试。');
+      break;
+    }
+
     const message = lastResult.message || lastResult.reason || '未读取到保存失败原因';
     const screenshot = await maybeScreenshot(page, config, `save_failed_${productIndex}_${attempt}`);
     logger.fail(baseRecord(productInfo, {
@@ -1218,8 +1253,9 @@ async function waitForSaveFeedback(page, config, saveSelector) {
 
   while (Date.now() - started < timeout) {
     await page.waitForTimeout(500).catch(() => {});
-    // 保存过程中可能弹出"信息未填写完整，是否继续保存"确认框，自动点确定后继续等结果
-    await clickSaveConfirmOk(page);
+    // 保存过程中可能弹出"信息未填写完整，是否继续保存"确认框，自动点确定后继续等结果；
+    // 若意外出现"是否确认离开"框则点取消留在当前商品
+    await dismissBlockingDialogs(page);
     const message = await collectFeedbackText(page);
     if (message) {
       const result = classifySaveFeedback(message);
@@ -1307,37 +1343,56 @@ async function closeBlockingOverlays(page) {
   await closeFeedbackOverlays(page);
 }
 
+/**
+ * 处理当前可见的 message-box 弹窗（jx/el/ant 通用）：
+ * - "是否确认离开"类（离开后将不会保存）→ 点【取消】留在当前商品——填写/保存中途点确定会丢弃进度
+ * - 其他提示框（是否继续保存、保存失败、系统提示）→ 点【确定】/【关闭】
+ * 返回是否处理了一个弹窗。
+ */
+async function dismissBlockingDialogs(page) {
+  return page.evaluate(() => {
+    const boxes = Array.from(document.querySelectorAll('.jx-message-box, .el-message-box, .ant-modal-confirm'))
+      .filter((box) => box.offsetWidth > 0 && box.offsetHeight > 0);
+    if (!boxes.length) return false;
+
+    const box = boxes[0];
+    const text = String(box.innerText || '').replace(/\s+/g, '');
+    const buttons = Array.from(box.querySelectorAll('button'))
+      .filter((b) => b.offsetWidth > 0 && b.offsetHeight > 0);
+    const norm = (b) => String(b.innerText || '').replace(/\s+/g, '');
+
+    if (/确认离开/.test(text)) {
+      const cancel = buttons.find((b) => /取消/.test(norm(b)));
+      if (cancel) { cancel.click(); return true; }
+    } else {
+      const ok = buttons.find((b) => /确定|继续|知道了|保存/.test(norm(b)));
+      if (ok) { ok.click(); return true; }
+    }
+    const closeIcon = box.querySelector('.jx-message-box__headerbtn, .el-message-box__headerbtn, [class*="close"]');
+    if (closeIcon) { closeIcon.click(); return true; }
+    return false;
+  }).catch(() => false);
+}
+
 async function closeFeedbackOverlays(page) {
-  const closeSelectors = [
-    '.el-message-box__btns button:has-text("确定")',
-    '.el-message-box__btns button:has-text("关闭")',
-    '.ant-modal-confirm-btns button:has-text("确定")',
-    '.ant-modal-confirm-btns button:has-text("关闭")',
-    '.ant-modal-confirm .ant-modal-footer button:has-text("确定")',
-    '.ant-modal-confirm .ant-modal-footer button:has-text("关闭")',
-    'button:has-text("知道了")',
-    '.el-message-box__close',
-    '.ant-modal-confirm .ant-modal-close',
-    '[role="alertdialog"] button:has-text("确定")',
-    '[role="alertdialog"] button:has-text("关闭")'
-  ];
-
-  for (const selector of closeSelectors) {
-    const item = page.locator(selector).first();
-    if (!(await item.count().catch(() => 0))) continue;
-    if (!(await item.isVisible().catch(() => false))) continue;
-    await item.click({ timeout: 1500 }).catch(() => {});
+  let closed = false;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (!(await dismissBlockingDialogs(page))) break;
+    closed = true;
     await page.waitForTimeout(300).catch(() => {});
-    return true;
   }
-
-  await page.keyboard.press('Escape').catch(() => {});
-  await page.waitForTimeout(300).catch(() => {});
-  return false;
+  if (!closed) {
+    await page.keyboard.press('Escape').catch(() => {});
+    await page.waitForTimeout(300).catch(() => {});
+  }
+  return closed;
 }
 
 async function goToNextProduct(page, config, productInfo, productIndex) {
   console.log(`[下一商品] 第 ${productIndex} 个商品处理结束，尝试进入下一个商品...`);
+
+  // 清理可能残留的提示弹窗，避免吞掉商品列表点击
+  await closeFeedbackOverlays(page);
 
   const beforeUrl = page.url();
   const beforeTitle = await page.evaluate(() => {
@@ -1424,7 +1479,7 @@ async function goToNextProduct(page, config, productInfo, productIndex) {
 }
 
 async function clickNextInGoodsList(page) {
-  const result = await page.evaluate(() => {
+  const tryClickNext = () => page.evaluate(() => {
     function visible(el) {
       const rect = el.getBoundingClientRect();
       const style = window.getComputedStyle(el);
@@ -1473,10 +1528,12 @@ async function clickNextInGoodsList(page) {
     return { success: false, reason: '没有找到 .goods-item.active 的下一个商品' };
   }).catch((error) => ({ success: false, reason: error.message }));
 
+  const result = await tryClickNext();
   if (result.success) {
     console.log(`[下一商品] 已点击商品列表下一项${result.title ? `：${result.title}` : ''}`);
     const started = Date.now();
     let activeChanged = false;
+    let reclicked = false;
     while (Date.now() - started < 12000) {
       await page.waitForTimeout(400).catch(() => {});
 
@@ -1501,6 +1558,17 @@ async function clickNextInGoodsList(page) {
         return clickedTitle ? Boolean(title) && (title.includes(clickedTitle) || clickedTitle.includes(title)) : Boolean(active);
       }, result.title || '').catch(() => false);
       if (activeChanged) break;
+
+      // 首次点击可能被残留弹层吞掉：过半程 active 仍未变化时，清弹层后补点一次
+      if (!reclicked && Date.now() - started > 6000) {
+        reclicked = true;
+        console.warn('[下一商品] active 未变化，清理弹层后重试点击下一项');
+        await closeFeedbackOverlays(page);
+        const again = await tryClickNext();
+        if (again.success) {
+          console.log(`[下一商品] 已重新点击下一项${again.title ? `：${again.title}` : ''}`);
+        }
+      }
     }
 
     if (!activeChanged) {

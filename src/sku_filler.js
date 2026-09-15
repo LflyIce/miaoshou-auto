@@ -21,6 +21,23 @@ async function fillSkuProperties(page, options = {}) {
   ];
 
   const rows = await markSkuPropertyRows(page, rules.map((rule) => rule.label));
+
+  // 保存前规则：保留项规格值超过30字符上限（保存必被拒）→ 跳过商品
+  // 注意：规格二名为"尺码"是纺织品常态（值≤30可正常保存），不能按名字跳过
+  const skipReason = await detectUnfillableSpec(page, rows, rules);
+  if (skipReason) {
+    return {
+      status: 'skip_product',
+      reason: skipReason,
+      specOneFound: Boolean(rows['规格一']),
+      specTwoFound: Boolean(rows['规格二']),
+      specOneTitleChanged: false,
+      specOneTrimmed: 0,
+      specTwoTrimmed: 0,
+      changed: false
+    };
+  }
+
   const summary = {
     status: 'success',
     specOneFound: Boolean(rows['规格一']),
@@ -53,6 +70,29 @@ async function fillSkuProperties(page, options = {}) {
   }
 
   return summary;
+}
+
+/** 检测无法自动处理的规格：裁剪后保留项的值超过30字符上限（保存必被拒）。返回原因字符串，无问题返回 '' */
+async function detectUnfillableSpec(page, rows, rules) {
+  try {
+    for (const rule of rules) {
+      const selector = rows[rule.label];
+      if (!selector) continue;
+      const row = page.locator(selector).first();
+
+      // 只检查裁剪后仍会保留的项（规格一前3项、规格二前2项），超30字符保存必失败
+      const inputs = row.locator('.spec-item input:not([type="hidden"])');
+      const total = await inputs.count().catch(() => 0);
+      const keep = Math.min(total, rule.keep);
+      for (let i = 0; i < keep; i += 1) {
+        const value = String(await inputs.nth(i).inputValue().catch(() => '')).trim();
+        if (value.length > 30) {
+          return `保留规格值超过30字符上限（${value.slice(0, 30)}...），保存会被拒，跳过商品`;
+        }
+      }
+    }
+  } catch (_) { /* 检测异常不阻断主流程 */ }
+  return '';
 }
 
 async function markSkuPropertyRows(page, labels) {
