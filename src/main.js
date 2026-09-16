@@ -1076,13 +1076,13 @@ async function saveCurrentProductWithRetry(page, config, logger, productInfo, su
       break;
     }
 
+    const message = lastResult.message || lastResult.reason || '未读取到保存失败原因';
+
     // SKU 规格值超长等无法通过重填属性修复的错误，重试也必然同样失败，直接跳过
     if (/SKU信息规格选项.*长度应不大于/.test(message)) {
       console.error('[保存] SKU规格值超长，无法自动修复，跳过重试。');
       break;
     }
-
-    const message = lastResult.message || lastResult.reason || '未读取到保存失败原因';
     const screenshot = await maybeScreenshot(page, config, `save_failed_${productIndex}_${attempt}`);
     logger.fail(baseRecord(productInfo, {
       name: `保存修改(第${attempt}次)`,
@@ -1538,10 +1538,13 @@ async function clickNextInGoodsList(page) {
       await page.waitForTimeout(400).catch(() => {});
 
       const dismissed = await page.evaluate(() => {
-        const popup = document.querySelector('.el-message-box, .jx-message-box');
-        if (!popup || popup.offsetWidth === 0) return false;
-        const text = popup.textContent || '';
-        if (!text.includes('切换') && !text.includes('保存修改')) return false;
+        // 页面可能残留隐藏的 el-message-box，必须遍历找"可见"的那个（jx 或 el）
+        const boxes = Array.from(document.querySelectorAll('.el-message-box, .jx-message-box'))
+          .filter((box) => box.offsetWidth > 0 && box.offsetHeight > 0);
+        if (!boxes.length) return false;
+        const popup = boxes[0];
+        const text = String(popup.innerText || '');
+        if (!text.includes('切换') && !text.includes('保存修改') && !text.includes('确认离开')) return false;
         const btn = popup.querySelector('.el-button--primary, .jx-button--primary');
         if (btn) { btn.click(); return true; }
         return false;
@@ -1645,29 +1648,21 @@ async function clickNextInLeftProductList(page) {
 
 async function confirmLeaveIfPrompted(page) {
   await page.waitForTimeout(500).catch(() => {});
-  const confirmSelectors = [
-    '.el-message-box__btns button:has-text("不保存")',
-    '.el-message-box__btns button:has-text("继续")',
-    '.el-message-box__btns button:has-text("确定")',
-    '.jx-message-box__btns button:has-text("不保存")',
-    '.jx-message-box__btns button:has-text("继续")',
-    '.jx-message-box__btns button:has-text("确定")',
-    '.ant-modal-footer button:has-text("不保存")',
-    '.ant-modal-footer button:has-text("继续")',
-    '.ant-modal-footer button:has-text("确定")',
-    'button:has-text("不保存")',
-    'button:has-text("继续")',
-    'button:has-text("确定")'
-  ];
-  for (const selector of confirmSelectors) {
-    const button = page.locator(selector).first();
-    if (!(await button.count().catch(() => 0))) continue;
-    if (!(await button.isVisible().catch(() => false))) continue;
-    await button.click({ timeout: 1500 }).catch(() => {});
-    await page.waitForTimeout(500).catch(() => {});
-    return true;
-  }
-  return false;
+  // 切商品上下文：可见的确认弹窗一律点"确定/继续/不保存"离开（jx/el/ant 通用，遍历避开隐藏残留）
+  const clicked = await page.evaluate(() => {
+    const boxes = Array.from(document.querySelectorAll('.el-message-box, .jx-message-box, .ant-modal-confirm'))
+      .filter((box) => box.offsetWidth > 0 && box.offsetHeight > 0);
+    if (!boxes.length) return false;
+    const box = boxes[0];
+    const buttons = Array.from(box.querySelectorAll('button'))
+      .filter((b) => b.offsetWidth > 0 && b.offsetHeight > 0);
+    const norm = (b) => String(b.innerText || '').replace(/\s+/g, '');
+    const target = buttons.find((b) => /确定|继续|不保存|保存并切换/.test(norm(b)));
+    if (target) { target.click(); return true; }
+    return false;
+  }).catch(() => false);
+  if (clicked) await page.waitForTimeout(500).catch(() => {});
+  return clicked;
 }
 
 async function waitForNextProductReady(page, previousProductInfo, config) {

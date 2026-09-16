@@ -16,6 +16,7 @@ const OPTION_SELECTORS = [
 async function scanRequiredAttributes(page, options = {}) {
   const errorFields = (options.errorFields || []).map((f) => f.replace(/\s+/g, '').toLowerCase());
   await ensureCategoryPaneReady(page);
+  await expandMoreAttributes(page);
   const rows = await page.evaluate((errorFields) => {
     const root = findCategoryAttributeRoot();
     if (!root) return [];
@@ -413,13 +414,24 @@ async function scanRequiredAttributes(page, options = {}) {
   return rows;
 }
 
-/** 新版 scroll-menu 页面：导航点击后 pane 可能延迟激活/渲染，等待"类别&属性"pane 可见且有表单项 */
-async function ensureCategoryPaneReady(page, timeoutMs = 8000) {
+/** 新版 scroll-menu 页面：导航点击后 pane 可能延迟激活，且类目属性接口返回后行才渲染——
+ *  可见行数量连续三次采样（600ms 间隔）不变才认为就绪，避免类目属性加载慢时只扫到先渲染的子集 */
+async function ensureCategoryPaneReady(page, timeoutMs = 10000) {
   const started = Date.now();
   let retriedClick = false;
+  let lastCount = -1;
+  let stablePolls = 0;
   while (Date.now() - started < timeoutMs) {
-    if (await checkCategoryPaneReady(page)) return true;
-    if (!retriedClick) {
+    const count = await countVisiblePaneRows(page);
+    if (count > 0) {
+      if (count === lastCount) {
+        stablePolls += 1;
+        if (stablePolls >= 3) return true;
+      } else {
+        stablePolls = 0;
+      }
+      lastCount = count;
+    } else if (!retriedClick) {
       // 导航点击可能未生效，用真实点击重试一次
       const nav = page.locator('.scroll-menu-nav__item')
         .filter({ hasText: /类别&属性|类目&属性|分类&属性/ }).first();
@@ -428,12 +440,24 @@ async function ensureCategoryPaneReady(page, timeoutMs = 8000) {
         retriedClick = true;
       }
     }
-    await sleep(400);
+    await sleep(600);
   }
-  return false;
+  return lastCount > 0;
 }
 
-async function checkCategoryPaneReady(page) {
+/** 展开"更多属性"折叠区：部分必填属性（如护理说明）可能藏在折叠的列里，不展开就扫不到 */
+async function expandMoreAttributes(page) {
+  const btn = page.locator('.expand-button-bar button', { hasText: /更多属性/ }).first();
+  if (await btn.count().catch(() => 0)) {
+    if (await btn.isVisible().catch(() => false)) {
+      await btn.click({ timeout: 2000 }).catch(() => {});
+      await sleep(400);
+    }
+  }
+}
+
+/** 统计"类别&属性"pane 内可见的表单行数（渐进渲染时数量会持续增长） */
+async function countVisiblePaneRows(page) {
   return page.evaluate(() => {
     const pane = Array.from(document.querySelectorAll('.scroll-menu-pane')).find((el) => {
       const label = el.querySelector('.scroll-menu-pane__label');
@@ -442,9 +466,12 @@ async function checkCategoryPaneReady(page) {
       const text = String(label.innerText || label.textContent || '').replace(/\s+/g, '');
       return rect.width > 0 && rect.height > 0 && /类别&属性|类目&属性|分类&属性|类别属性|类目属性/.test(text);
     });
-    if (!pane) return false;
-    return pane.querySelectorAll('.jx-form-item, [class*="form-item"]').length > 0;
-  }).catch(() => false);
+    if (!pane) return 0;
+    return Array.from(pane.querySelectorAll('.product-attribute-item, .jx-form-item')).filter((el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    }).length;
+  }).catch(() => 0);
 }
 
 async function readOptionsForAttribute(page, attribute) {
