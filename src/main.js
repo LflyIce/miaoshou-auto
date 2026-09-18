@@ -3,7 +3,7 @@ require('dotenv').config();
 const fs = require('fs');
 const { chromium } = require('playwright');
 const { analyzeAttributes, analyzeSaveError, startTitleGeneration, secondChoice, secondChoiceBatch } = require('./ai_analyzer');
-const { scanRequiredAttributes } = require('./attribute_scanner');
+const { scanRequiredAttributes, readPaneAttributeNames, readOptionsForAttribute, readMaterialTableOptions } = require('./attribute_scanner');
 const { fillAttribute } = require('./filler');
 const { fillProductTitles } = require('./title_filler');
 const { RunLogger } = require('./logger');
@@ -23,6 +23,7 @@ const {
   nowForFile,
   resolveRoot,
   safeFileName,
+  sleep,
   toArrayValue,
   waitForEnter
 } = require('./utils');
@@ -422,42 +423,49 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
     }
   }
 
-  console.log(`[${productIndexLabel}][4/5] 调用 AI 分析属性值...`);
-  tic('knowledge');
-  const knowledgeDecisions = await buildKnowledgeDecisions(todoAttributes, knowledgeReference, productInfo);
-  const aiAttributes = todoAttributes.filter((attr) => !knowledgeDecisions.has(attr.name));
-  if (knowledgeDecisions.size) {
-    console.log(`[Knowledge] Reusing ${knowledgeDecisions.size} attribute value(s) from local category history.`);
-  }
-  toc('knowledge');
-
-  tic('attrAI');
-  const aiResult = aiAttributes.length
-    ? await analyzeAttributes(productInfo, aiAttributes, knowledgeReference)
-    : { attributes: [] };
-  const aiByName = new Map((aiResult.attributes || []).map((item) => [item.name, item]));
-  toc('attrAI');
-
-  console.log(`[${productIndexLabel}][5/5] 匹配页面真实选项并填写...`);
-  tic('batchSc');
-  // 预计算 secondChoice 批量结果，避免 N 次串行 AI 调用
-  const secondChoiceCache = await precomputeSecondChoice(todoAttributes, aiByName, productInfo);
-  if (secondChoiceCache.size) {
-    console.log(`[AI] 批量二次选择完成: ${secondChoiceCache.size} 个字段已缓存`);
-  }
-  toc('batchSc');
-
+  console.log(`[${productIndexLabel}][4-5/5] 逐字段决策并填写（每填一个全量重扫，直到无必填遗漏）...`);
   tic('matchFill');
-  for (const attr of todoAttributes) {
+  const fillAttempts = new Map();
+  const reportedStuck = new Set();
+  for (let fillRound = 1; fillRound <= 30; fillRound += 1) {
+    // 轻量扫描：不预读所有下拉选项（只读即将填写的字段），避免逐字段循环产生 N×N 次开下拉
+    const scanned = await scanRequiredAttributes(page, { errorFields: options.errorFields || [], skipOptionRead: true });
+    const missedNames = await findMissedAttributeNames(page, scanned);
+    const emptyRequired = scanned.filter((attr) => !attr.alreadyFilled || attr.errorMessage);
+    const next = emptyRequired.filter((attr) => (fillAttempts.get(attr.name) || 0) < 2);
+    const stuck = emptyRequired.filter((attr) => (fillAttempts.get(attr.name) || 0) >= 2);
+    for (const attr of stuck) {
+      if (!reportedStuck.has(attr.name)) {
+        reportedStuck.add(attr.name);
+        console.warn(`[属性] 【${attr.name}】两轮尝试后仍为空，交由保存校验兜底`);
+      }
+    }
+    if (!next.length) {
+      if (!missedNames.length) break; // 扫全且无漏填 → 属性编辑完成
+      console.warn(`[属性] pane 有 ${missedNames.length} 个属性未被扫描到: ${missedNames.join('、')}，等待重扫`);
+      await sleep(1200);
+      continue;
+    }
+
+    // 每轮只处理第一个空字段：填完下一轮全量重扫，级联出现/渲染晚到的字段自然被发现，不会漏
+    const attr = next[0];
+    fillAttempts.set(attr.name, (fillAttempts.get(attr.name) || 0) + 1);
+    if (attr.controlType === 'material_ratio_table') {
+      attr.options = await readMaterialTableOptions(page, attr).catch(() => []);
+    } else if (attr.controlType === 'select' || attr.controlType === 'multi_select') {
+      attr.options = await readOptionsForAttribute(page, attr).catch(() => []);
+    }
+
     // 填写前处理可能意外弹出的弹窗（如"是否确认离开"），避免挡住下拉点击
     await dismissBlockingDialogs(page);
-    const knowledgeDecision = knowledgeDecisions.get(attr.name);
+    // 决策：知识库优先（本地免 AI），未命中走单字段 AI
+    const knowledgeDecision = (await buildKnowledgeDecisions([attr], knowledgeReference, productInfo)).get(attr.name);
     const ai = knowledgeDecision ? {
       value: knowledgeDecision.sourceValue,
       confidence: knowledgeDecision.confidence,
       reason: knowledgeDecision.reason,
       need_manual: false
-    } : aiByName.get(attr.name) || {
+    } : ((await analyzeAttributes(productInfo, [attr], knowledgeReference).catch(() => ({ attributes: [] }))).attributes || [])[0] || {
       value: null,
       confidence: 0,
       reason: 'AI 未返回该字段',
@@ -465,7 +473,7 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
     };
 
     try {
-      const finalDecision = knowledgeDecision || await decideFinalValue(attr, ai, productInfo, secondChoiceCache);
+      const finalDecision = knowledgeDecision || await decideFinalValue(attr, ai, productInfo, null);
       if (!finalDecision.value || finalDecision.method === 'manual_required') {
         summary.failed += 1;
         logger.fail(baseRecord(productInfo, attr, {
@@ -508,87 +516,9 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
         error: errorMessage
       }));
     }
+    await sleep(300);
   }
   toc('matchFill');
-
-  // 填写完属性后再次扫描，捕捉因选择某个属性后新出现的关联属性
-  tic('cascadedScan');
-  const newAttributes = await scanRequiredAttributes(page, { errorFields: [] });
-  const alreadyHandled = new Set(todoAttributes.map((a) => a.name));
-  const cascadedAttributes = newAttributes.filter(
-    (attr) => !alreadyHandled.has(attr.name) && !attr.alreadyFilled
-  );
-  if (cascadedAttributes.length) {
-    console.log(`[关联属性] 填写后检测到 ${cascadedAttributes.length} 个新出现的必填属性`);
-    for (const attr of cascadedAttributes) {
-      console.log(`  + ${attr.name} | ${attr.controlType} | 选项 ${attr.options.length}`);
-    }
-    const cascadedKnowledgeDecisions = await buildKnowledgeDecisions(cascadedAttributes, knowledgeReference, productInfo);
-    const cascadedAiAttributes = cascadedAttributes.filter((attr) => !cascadedKnowledgeDecisions.has(attr.name));
-    if (cascadedKnowledgeDecisions.size) {
-      console.log(`[Knowledge] Reusing ${cascadedKnowledgeDecisions.size} cascaded attribute value(s) from local category history.`);
-    }
-
-    tic('cascadedAI');
-    const cascadedResult = cascadedAiAttributes.length
-      ? await analyzeAttributes(productInfo, cascadedAiAttributes, knowledgeReference)
-      : { attributes: [] };
-    const cascadedAiByName = new Map((cascadedResult.attributes || []).map((item) => [item.name, item]));
-    toc('cascadedAI');
-    // 关联属性也做批量 secondChoice
-    const cascadedSecondChoiceCache = await precomputeSecondChoice(cascadedAttributes, cascadedAiByName, productInfo);
-    for (const attr of cascadedAttributes) {
-      // 填写前处理可能意外弹出的弹窗，避免挡住下拉点击
-      await dismissBlockingDialogs(page);
-      const knowledgeDecision = cascadedKnowledgeDecisions.get(attr.name);
-      const ai = knowledgeDecision ? {
-        value: knowledgeDecision.sourceValue,
-        confidence: knowledgeDecision.confidence,
-        reason: knowledgeDecision.reason,
-        need_manual: false
-      } : cascadedAiByName.get(attr.name) || { value: null, confidence: 0, reason: 'AI 未返回该字段', need_manual: true };
-      try {
-        const finalDecision = knowledgeDecision || await decideFinalValue(attr, ai, productInfo, cascadedSecondChoiceCache);
-        if (!finalDecision.value || finalDecision.method === 'manual_required') {
-          summary.failed += 1;
-          logger.fail(baseRecord(productInfo, attr, {
-            aiValue: ai.value,
-            finalValue: finalDecision.value,
-            matchMethod: finalDecision.method,
-            confidence: finalDecision.confidence,
-            reason: finalDecision.reason,
-            error: finalDecision.reason
-          }));
-          continue;
-        }
-        await fillAttribute(page, attr, finalDecision.value);
-        summary.success += 1;
-        summary.requiredCount += 1;
-        logger.log(baseRecord(productInfo, attr, {
-          aiValue: ai.value,
-          finalValue: finalDecision.value,
-          matchMethod: finalDecision.method,
-          confidence: finalDecision.confidence,
-          status: 'success',
-          reason: `${ai.reason || ''} ${finalDecision.reason || ''}`.trim()
-        }));
-      } catch (error) {
-        summary.failed += 1;
-        summary.requiredCount += 1;
-        const screenshot = await maybeScreenshot(page, config, attr.name);
-        logger.fail(baseRecord(productInfo, attr, {
-          aiValue: ai.value,
-          finalValue: '',
-          matchMethod: 'failed',
-          confidence: ai.confidence || 0,
-          reason: ai.reason || '',
-          screenshot,
-          error: error.message
-        }));
-      }
-    }
-    toc('cascadedAttr');
-  }
 
   // 在页面仍可用时立即导出产品数据（使用提前读取的SKU数据）
   tic('export');
@@ -621,6 +551,122 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
   console.log(`[耗时] ===== 商品处理总耗时: ${Date.now() - _timers.titleAI}ms =====`);
 
   return { productInfo, navigationResult, japaneseTitle };
+}
+
+/**
+ * 保存失败的定向修复：只进入"类别&属性"模块补填出错/漏填的必填属性，
+ * 不重跑标题/描述/SKU/导出。适用于"产品属性【xx】必填"类校验错误。
+ */
+async function fixAttributesForRetry(page, config, logger, summary, productInfo, options = {}) {
+  const categoryKnowledge = options.categoryKnowledge;
+  const attributesModule = config.modules && config.modules.attributes
+    ? config.modules.attributes
+    : { name: '类别&属性', aliases: ['类目&属性', '分类&属性', '商品属性', '产品属性'], autoNavigate: true };
+  if (attributesModule.autoNavigate !== false) {
+    const navigationResult = await navigateToModule(page, attributesModule);
+    if (!navigationResult.success) console.warn(`[模块] ${navigationResult.reason}`);
+  }
+
+  const categoryInfo = await readCurrentCategory(page).catch(() => ({ name: '' }));
+  productInfo.categoryName = categoryInfo.name || productInfo.categoryName || '';
+  const knowledgeReference = categoryKnowledge
+    ? categoryKnowledge.getReference(productInfo.categoryName, [])
+    : null;
+
+  // 终检式循环：错误字段优先补，再全量扫空的，最多3轮
+  const fillAttempts = new Map();
+  for (let round = 1; round <= 4; round += 1) {
+    if (round > 1) await sleep(1200);
+    const attributes = await scanRequiredAttributes(page, { errorFields: options.errorFields || [] });
+    // 漏扫检测：保存提示只报一个字段时，也要全量扫出其他空的（如风格填完还有织造方式）
+    const missedNames = await findMissedAttributeNames(page, attributes);
+    const emptyRequired = attributes.filter((attr) => !attr.alreadyFilled || attr.errorMessage);
+    const todo = emptyRequired.filter((attr) => (fillAttempts.get(attr.name) || 0) < 2);
+    const stuck = emptyRequired.filter((attr) => (fillAttempts.get(attr.name) || 0) >= 2);
+    if (stuck.length) {
+      console.warn(`[保存修复] 两轮尝试后仍为空: ${stuck.map((a) => a.name).join('、')}`);
+    }
+    if (missedNames.length) {
+      console.warn(`[保存修复] pane 有 ${missedNames.length} 个属性未被扫描到: ${missedNames.join('、')}${round < 4 ? '，下一轮重扫确认' : ''}`);
+    }
+    if (!todo.length) {
+      if (!missedNames.length) break;
+      continue;
+    }
+    console.log(`[保存修复${round}] 补填 ${todo.length} 个必填属性: ${todo.map((a) => a.name).join('、')}`);
+    todo.forEach((attr) => fillAttempts.set(attr.name, (fillAttempts.get(attr.name) || 0) + 1));
+    summary.requiredCount += todo.length;
+
+    const knowledgeDecisions = await buildKnowledgeDecisions(todo, knowledgeReference, productInfo);
+    const aiAttributes = todo.filter((attr) => !knowledgeDecisions.has(attr.name));
+    const aiResult = aiAttributes.length
+      ? await analyzeAttributes(productInfo, aiAttributes, knowledgeReference)
+      : { attributes: [] };
+    const aiByName = new Map((aiResult.attributes || []).map((item) => [item.name, item]));
+    const secondChoiceCache = await precomputeSecondChoice(todo, aiByName, productInfo);
+
+    for (const attr of todo) {
+      await dismissBlockingDialogs(page);
+      const knowledgeDecision = knowledgeDecisions.get(attr.name);
+      const ai = knowledgeDecision ? {
+        value: knowledgeDecision.sourceValue,
+        confidence: knowledgeDecision.confidence,
+        reason: knowledgeDecision.reason,
+        need_manual: false
+      } : aiByName.get(attr.name) || { value: null, confidence: 0, reason: 'AI 未返回该字段', need_manual: true };
+      try {
+        const finalDecision = knowledgeDecision || await decideFinalValue(attr, ai, productInfo, secondChoiceCache);
+        if (!finalDecision.value || finalDecision.method === 'manual_required') {
+          summary.failed += 1;
+          logger.fail(baseRecord(productInfo, attr, {
+            aiValue: ai.value,
+            finalValue: finalDecision.value,
+            matchMethod: finalDecision.method,
+            confidence: finalDecision.confidence,
+            reason: finalDecision.reason,
+            error: finalDecision.reason
+          }));
+          continue;
+        }
+        await fillAttribute(page, attr, finalDecision.value);
+        summary.success += 1;
+        logger.log(baseRecord(productInfo, attr, {
+          aiValue: ai.value,
+          finalValue: finalDecision.value,
+          matchMethod: finalDecision.method,
+          confidence: finalDecision.confidence,
+          status: 'success',
+          reason: `${ai.reason || ''} ${finalDecision.reason || ''}`.trim()
+        }));
+        if (categoryKnowledge && productInfo.categoryName) {
+          categoryKnowledge.recordFillResult(productInfo.categoryName, attr, finalDecision.value, productInfo);
+        }
+      } catch (error) {
+        summary.failed += 1;
+        const screenshot = await maybeScreenshot(page, config, attr.name);
+        logger.fail(baseRecord(productInfo, attr, {
+          aiValue: ai.value,
+          finalValue: '',
+          matchMethod: 'failed',
+          confidence: ai.confidence || 0,
+          reason: ai.reason || '',
+          screenshot,
+          error: error.message
+        }));
+      }
+    }
+  }
+}
+
+/** 漏扫检测：对比 pane 实际属性名与扫描结果，返回未被扫描到的属性名列表 */
+async function findMissedAttributeNames(page, scannedAttributes) {
+  const paneNames = await readPaneAttributeNames(page);
+  if (!paneNames.length) return [];
+  const scanned = scannedAttributes.map((a) => String(a.name || '').replace(/\s+/g, ''));
+  return [...new Set(paneNames)].filter((name) => {
+    const n = name.replace(/\s+/g, '');
+    return n && !scanned.some((s) => s === n || s.includes(n) || n.includes(s));
+  });
 }
 
 async function buildKnowledgeDecisions(attributes, knowledgeReference, productInfo) {
@@ -1099,40 +1145,50 @@ async function saveCurrentProductWithRetry(page, config, logger, productInfo, su
     if (attempt >= maxAttempts) break;
 
     console.warn(`[保存] 保存失败提示：${message}`);
-    console.log('[保存] 关闭失败弹窗，调用 AI 分析错误原因...');
     await closeFeedbackOverlays(page);
 
-    const errorFields = parseErrorFields(message);
-    console.log(`[保存] 从错误信息中提取到字段：${errorFields.join(', ') || '(无)'}`);
+    // 属性类错误（产品属性【xx】必填）：直接进属性模块定向补填，不重跑标题/描述/SKU/导出
+    const attributeErrorFields = Array.from(message.matchAll(/产品属性【([^】]+)】/g), (m) => m[1].trim()).filter(Boolean);
+    if (attributeErrorFields.length && !/标题|SKU信息|价格|图片|重量|类目|品牌名/.test(message)) {
+      console.log(`[保存] 属性类错误，进入属性模块定向补填: ${attributeErrorFields.join('、')}`);
+      const fixSummary = createProductSummary();
+      await fixAttributesForRetry(page, config, logger, fixSummary, productInfo, {
+        categoryKnowledge,
+        errorFields: attributeErrorFields
+      });
+      mergeProductSummary(summary, fixSummary);
+    } else {
+      console.log('[保存] 关闭失败弹窗，调用 AI 分析错误原因...');
+      const errorFields = parseErrorFields(message);
+      console.log(`[保存] 从错误信息中提取到字段：${errorFields.join(', ') || '(无)'}`);
 
-    let aiErrorFields = [];
-    // 构建修正值映射（传递给重试时使用）
-    const corrections = {};
-    try {
-      const aiAnalysis = await analyzeSaveError(message, productInfo);
-      if (aiAnalysis.corrections && aiAnalysis.corrections.length) {
-        console.log(`[保存] AI 分析建议修正：${aiAnalysis.corrections.map((c) => `${c.fieldName}=${c.suggestedValue}`).join(', ')}`);
-        for (const c of aiAnalysis.corrections) {
-          const fn = c.fieldName || c.name || '';
-          if (fn && !errorFields.includes(fn)) errorFields.push(fn);
-          if (fn && !aiErrorFields.includes(fn)) aiErrorFields.push(fn);
-          // 保存修正值供重试使用
-          if (fn && c.suggestedValue) corrections[fn] = c.suggestedValue;
+      // 构建修正值映射（传递给重试时使用）
+      const corrections = {};
+      try {
+        const aiAnalysis = await analyzeSaveError(message, productInfo);
+        if (aiAnalysis.corrections && aiAnalysis.corrections.length) {
+          console.log(`[保存] AI 分析建议修正：${aiAnalysis.corrections.map((c) => `${c.fieldName}=${c.suggestedValue}`).join(', ')}`);
+          for (const c of aiAnalysis.corrections) {
+            const fn = c.fieldName || c.name || '';
+            if (fn && !errorFields.includes(fn)) errorFields.push(fn);
+            // 保存修正值供重试使用
+            if (fn && c.suggestedValue) corrections[fn] = c.suggestedValue;
+          }
         }
+      } catch (e) {
+        console.warn(`[保存] AI 错误分析异常: ${e.message}`);
       }
-    } catch (e) {
-      console.warn(`[保存] AI 错误分析异常: ${e.message}`);
-    }
 
-    console.log('[保存] 重新扫描当前商品（包含错误字段），尝试更正后再次保存...');
-    const retrySummary = createProductSummary();
-    await processCurrentProduct(page, config, logger, retrySummary, {
-      productIndex: `${productIndex} 重试${attempt}`,
-      categoryKnowledge,
-      errorFields,
-      corrections
-    });
-    mergeProductSummary(summary, retrySummary);
+      console.log('[保存] 重新处理当前商品（包含错误字段），尝试更正后再次保存...');
+      const retrySummary = createProductSummary();
+      await processCurrentProduct(page, config, logger, retrySummary, {
+        productIndex: `${productIndex} 重试${attempt}`,
+        categoryKnowledge,
+        errorFields,
+        corrections
+      });
+      mergeProductSummary(summary, retrySummary);
+    }
   }
 
   await closeFeedbackOverlays(page);

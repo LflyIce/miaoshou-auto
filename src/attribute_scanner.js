@@ -15,6 +15,7 @@ const OPTION_SELECTORS = [
 
 async function scanRequiredAttributes(page, options = {}) {
   const errorFields = (options.errorFields || []).map((f) => f.replace(/\s+/g, '').toLowerCase());
+  const skipOptionRead = options.skipOptionRead === true; // 轻量扫描：跳过选项预读，由调用方按需读取
   await ensureCategoryPaneReady(page);
   await expandMoreAttributes(page);
   const rows = await page.evaluate((errorFields) => {
@@ -392,6 +393,7 @@ async function scanRequiredAttributes(page, options = {}) {
 
   for (const row of rows) {
     row.name = cleanAttributeName(row.name);
+    if (skipOptionRead) continue;
     if ((!row.alreadyFilled || row.errorMessage) && (row.controlType === 'select' || row.controlType === 'multi_select')) {
       try {
         row.options = await readOptionsForAttribute(page, row);
@@ -620,6 +622,36 @@ async function cleanupMaterialRow(row, hadExistingRow) {
   await sleep(200);
 }
 
+/** 读取"类别&属性"pane内全部可见属性名（不论必填/已填），用于与扫描结果对比检测漏扫 */
+async function readPaneAttributeNames(page) {
+  return page.evaluate(() => {
+    const pane = Array.from(document.querySelectorAll('.scroll-menu-pane')).find((el) => {
+      const label = el.querySelector('.scroll-menu-pane__label');
+      if (!label) return false;
+      const rect = label.getBoundingClientRect();
+      const text = String(label.innerText || label.textContent || '').replace(/\s+/g, '');
+      return rect.width > 0 && rect.height > 0 && /类别&属性|类目&属性|分类&属性|类别属性|类目属性/.test(text);
+    });
+    if (!pane) return [];
+    return Array.from(pane.querySelectorAll('.product-attribute-item'))
+      .filter((el) => {
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      })
+      .map((el) => {
+        const label = el.querySelector('.jx-form-item__label, .el-form-item__label, label');
+        return String((label && (label.innerText || label.textContent)) || '')
+          .replace(/[:：\s*]/g, '')
+          .split(/[(（]/)[0]
+          .trim();
+      })
+      .filter(Boolean);
+  }).catch(() => []);
+}
+
 module.exports = {
-  scanRequiredAttributes
+  scanRequiredAttributes,
+  readPaneAttributeNames,
+  readOptionsForAttribute,
+  readMaterialTableOptions
 };
