@@ -1,16 +1,15 @@
 const { sleep, toArrayValue } = require('./utils');
-
-const OPTION_SELECTORS = [
-  '.el-select-dropdown .el-select-dropdown__item',
-  '.el-popper .el-select-dropdown__item',
-  '.jx-select-dropdown .jx-select-dropdown__item',
-  '.jx-popper [role="option"]',
-  '.jx-select-dropdown [role="option"]',
-  '.ant-select-dropdown .ant-select-item-option',
-  '.ant-select-dropdown [role="option"]',
-  '[role="listbox"] [role="option"]',
-  '.dropdown-menu li'
-];
+const { matchLocally } = require('./option_matcher');
+const {
+  clickFirstVisibleOption,
+  clickOption,
+  closeDropdownByOutsideClick,
+  collectVisibleOptions,
+  openSelect,
+  typeSearchValue,
+  verifyRowContains,
+  waitForDropdownVisible
+} = require('./ui');
 
 async function fillAttribute(page, attribute, finalValue) {
   if (!finalValue || (Array.isArray(finalValue) && !finalValue.length)) {
@@ -36,24 +35,51 @@ async function fillAttribute(page, attribute, finalValue) {
   throw new Error(`未知控件类型: ${attribute.controlType}`);
 }
 
+/** 填写时活选项重匹配：决策基于扫描时的选项快照，级联/搜索型下拉的实际选项可能已变。
+ *  值不在当前活选项中时用本地匹配链（exact→normalized→contains→included_by）选最接近的活选项，
+ *  找不到返回原值走原有点选/搜索兜底 */
+async function rematchLiveOption(page, attrName, value) {
+  const target = String(value == null ? '' : value).trim();
+  if (!target) return value;
+  const live = await collectVisibleOptions(page);
+  if (!live.length || live.some((item) => item === target)) return value;
+  const local = matchLocally(target, live);
+  if (!local) return value;
+  console.log(`[活选项] ${attrName}: 快照值「${target}」不在当前下拉，重匹配为「${local.option}」(${local.method})`);
+  return local.option;
+}
+
 async function fillSelect(page, attribute, value) {
   const row = await getRow(page, attribute);
-  await openSelect(row);
-  await sleep(250);
+  if (!(await openSelect(row))) throw new Error('无法打开选择框');
+  await waitForDropdownVisible(page);
 
-  let clicked = await clickOption(page, value, true);
+  const target = await rematchLiveOption(page, attribute.name, value);
+  let clicked = await clickOption(page, target, true);
   if (!clicked) {
-    await typeSearchValue(row, page, value);
+    await typeSearchValue(row, page, target);
     await sleep(350);
-    clicked = await clickOption(page, value, false);
+    clicked = await clickOption(page, target, false);
   }
 
-  if (!clicked) throw new Error(`下拉选项中找不到 ${value}`);
+  if (!clicked) throw new Error(`下拉选项中找不到 ${target}${target !== value ? `（原决策值 ${value}）` : ''}`);
   await sleep(300);
 
-  const ok = await verifyRowContains(row, value);
-  if (!ok) throw new Error(`选择后未检测到已填写值 ${value}`);
+  // 关闭后再校验：若 Escape 回滚了选择（jx 多选行为），重选并改用点击外部关闭
   await page.keyboard.press('Escape').catch(() => {});
+  await sleep(300);
+  if (!(await verifyRowContains(row, target))) {
+    await openSelect(row);
+    await sleep(250);
+    const reclicked = await clickOption(page, target, true)
+      || await clickOption(page, target, false);
+    if (!reclicked) throw new Error(`下拉选项中找不到 ${target}`);
+    await closeDropdownByOutsideClick(page);
+    await sleep(400);
+  }
+
+  const ok = await verifyRowContains(row, target);
+  if (!ok) throw new Error(`选择后未检测到已填写值 ${target}`);
   return { status: 'success' };
 }
 
@@ -62,22 +88,43 @@ async function fillMultiSelect(page, attribute, finalValue) {
   const values = toArrayValue(finalValue);
   if (!values.length) throw new Error('多选值为空');
 
+  const targets = [];
+  const missingValues = async (filled) => {
+    const rowText = await row.innerText().catch(() => '');
+    return filled.filter((value) => !rowText.includes(value));
+  };
+
   for (const value of values) {
-    await openSelect(row);
-    await sleep(250);
-    let clicked = await clickOption(page, value, true);
+    if (!(await openSelect(row))) throw new Error('无法打开选择框');
+    await waitForDropdownVisible(page);
+    const target = await rematchLiveOption(page, attribute.name, value);
+    let clicked = await clickOption(page, target, true);
     if (!clicked) {
-      await typeSearchValue(row, page, value);
+      await typeSearchValue(row, page, target);
       await sleep(350);
-      clicked = await clickOption(page, value, false);
+      clicked = await clickOption(page, target, false);
     }
-    if (!clicked) throw new Error(`多选选项中找不到 ${value}`);
-    await sleep(200);
+    if (!clicked) throw new Error(`多选选项中找不到 ${target}`);
+    await sleep(250);
+    targets.push(target);
   }
 
-  await page.keyboard.press('Escape').catch(() => {});
-  const rowText = await row.innerText().catch(() => '');
-  const missing = values.filter((value) => !rowText.includes(value));
+  // 不按 Escape（会回滚多选），用点击外部关闭；丢失的值重选一次
+  await closeDropdownByOutsideClick(page);
+  await sleep(300);
+  let missing = await missingValues(targets);
+  if (missing.length) {
+    for (const value of missing) {
+      await openSelect(row);
+      await sleep(250);
+      const clicked = await clickOption(page, value, true) || await clickOption(page, value, false);
+      if (!clicked) continue;
+      await sleep(250);
+      await closeDropdownByOutsideClick(page);
+      await sleep(300);
+    }
+    missing = await missingValues(targets);
+  }
   if (missing.length) throw new Error(`多选填写后未检测到: ${missing.join(', ')}`);
   return { status: 'success' };
 }
@@ -86,6 +133,9 @@ async function fillInput(page, attribute, value) {
   const row = await getRow(page, attribute);
   const input = row.locator('textarea, input:not([type="hidden"])').first();
   if (!(await input.count())) throw new Error('找不到输入框');
+  // 只读输入框（级联/选择器的展示载体）不可 fill，等下去只会30s超时，快速失败给出明确原因
+  const readOnly = await input.evaluate((el) => el.readOnly).catch(() => false);
+  if (readOnly) throw new Error('输入框只读，不是文本输入控件（可能为级联/选择器）');
   await input.scrollIntoViewIfNeeded();
   await input.fill('');
   await input.fill(value);
@@ -102,16 +152,17 @@ async function fillMaterialRatioTable(page, attribute, finalValue) {
 
   await ensureMaterialTableRow(row);
 
-  await openSelect(row);
-  await sleep(250);
+  if (!(await openSelect(row))) throw new Error('无法打开选择框');
+  await waitForDropdownVisible(page);
 
-  let selectedMaterial = material;
-  let clicked = await clickOption(page, material, true);
-  if (!clicked) clicked = await clickOption(page, material, false);
+  const materialTarget = await rematchLiveOption(page, attribute.name, material);
+  let selectedMaterial = materialTarget;
+  let clicked = await clickOption(page, materialTarget, true);
+  if (!clicked) clicked = await clickOption(page, materialTarget, false);
   if (!clicked) {
-    await typeSearchValue(row, page, material);
+    await typeSearchValue(row, page, materialTarget);
     await sleep(350);
-    clicked = await clickOption(page, material, false);
+    clicked = await clickOption(page, materialTarget, false);
   }
 
   if (!clicked) {
@@ -121,7 +172,7 @@ async function fillMaterialRatioTable(page, attribute, finalValue) {
     selectedMaterial = await clickFirstVisibleOption(page);
   }
 
-  if (!selectedMaterial) throw new Error(`材料选项中找不到 ${material}`);
+  if (!selectedMaterial) throw new Error(`材料选项中找不到 ${materialTarget}`);
 
   await fillMaterialRatio(row, '100');
   await sleep(200);
@@ -209,116 +260,6 @@ async function getRow(page, attribute) {
     if (await row.count().catch(() => 0)) return row;
   }
   throw new Error(`找不到属性行: ${attribute.name}`);
-}
-
-async function openSelect(row) {
-  // 注意：不兜底裸 input——宽泛匹配会点到行外的元素（如左侧商品列表），误触"是否确认离开"弹窗
-  const targets = [
-    '.jx-select__wrapper',
-    '.jx-select',
-    '.el-select',
-    '.ant-select',
-    '[role="combobox"]',
-    '.el-input',
-    '.ant-select-selector',
-    'input[readonly]'
-  ];
-  for (const selector of targets) {
-    const locator = row.locator(selector);
-    const count = await locator.count().catch(() => 0);
-    for (let i = 0; i < count; i += 1) {
-      const item = locator.nth(i);
-      if (!(await item.isVisible().catch(() => false))) continue;
-      try {
-        await item.scrollIntoViewIfNeeded();
-        await item.click({ timeout: 2500 });
-        return true;
-      } catch (_) {
-        continue;
-      }
-    }
-  }
-  throw new Error('无法打开选择框');
-}
-
-async function clickOption(page, value, exact) {
-  for (const selector of OPTION_SELECTORS) {
-    const handles = await page.locator(selector).elementHandles().catch(() => []);
-    for (const handle of handles) {
-      const matched = await handle.evaluate((node, args) => {
-        const rect = node.getBoundingClientRect();
-        const style = window.getComputedStyle(node);
-        const visible = rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
-        if (!visible) return false;
-        if (/disabled|is-disabled|ant-select-item-option-disabled/i.test(`${node.className || ''}`)) return false;
-        const text = (node.innerText || node.textContent || '').replace(/\s+/g, ' ').trim();
-        return args.exact ? text === args.value : text.includes(args.value) || args.value.includes(text);
-      }, { value, exact }).catch(() => false);
-
-      if (!matched) continue;
-      try {
-        await handle.click({ timeout: 2500 });
-        return true;
-      } catch (_) {
-        continue;
-      }
-    }
-  }
-  return false;
-}
-
-async function clickFirstVisibleOption(page) {
-  for (const selector of OPTION_SELECTORS) {
-    const handles = await page.locator(selector).elementHandles().catch(() => []);
-    for (const handle of handles) {
-      const text = await handle.evaluate((node) => {
-        const rect = node.getBoundingClientRect();
-        const style = window.getComputedStyle(node);
-        const visible = rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
-        if (!visible) return '';
-        if (/disabled|is-disabled|ant-select-item-option-disabled/i.test(`${node.className || ''}`)) return '';
-        return (node.innerText || node.textContent || '').replace(/\s+/g, ' ').trim();
-      }).catch(() => '');
-      if (!text) continue;
-      try {
-        await handle.click({ timeout: 2500 });
-        return text;
-      } catch (_) {
-        continue;
-      }
-    }
-  }
-  return '';
-}
-
-async function typeSearchValue(row, page, value) {
-  const inputs = row.locator('.el-select input, .ant-select input, [role="combobox"], input');
-  const count = await inputs.count().catch(() => 0);
-  for (let i = 0; i < count; i += 1) {
-    const input = inputs.nth(i);
-    if (!(await input.isVisible().catch(() => false))) continue;
-    try {
-      await input.click({ timeout: 1000 });
-      await page.keyboard.press('Control+A').catch(() => {});
-      await page.keyboard.type(value, { delay: 20 });
-      return true;
-    } catch (_) {
-      continue;
-    }
-  }
-  return false;
-}
-
-async function verifyRowContains(row, value) {
-  const text = await row.innerText().catch(() => '');
-  if (text.includes(value)) return true;
-  const inputs = row.locator('input, textarea');
-  const count = await inputs.count().catch(() => 0);
-  for (let i = 0; i < count; i += 1) {
-    const actual = await inputs.nth(i).inputValue().catch(() => '');
-    if (actual.includes(value)) return true;
-  }
-  return false;
 }
 
 module.exports = {

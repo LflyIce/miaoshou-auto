@@ -1,17 +1,5 @@
 const { sleep } = require('./utils');
-
-const OPTION_SELECTORS = [
-  '.el-select-dropdown .el-select-dropdown__item',
-  '.el-popper .el-select-dropdown__item',
-  '.jx-select-dropdown .jx-select-dropdown__item',
-  '.jx-popper [role="option"]',
-  '.jx-select-dropdown [role="option"]',
-  '.ant-select-dropdown .ant-select-item-option',
-  '.ant-select-dropdown [role="option"]',
-  '[role="listbox"] [role="option"]',
-  '.select-dropdown [role="option"]',
-  '.dropdown-menu li'
-];
+const { OPTION_SELECTORS } = require('./ui');
 
 async function fillSkuProperties(page, options = {}) {
   const modelName = options.modelName || '型号';

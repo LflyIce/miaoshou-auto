@@ -1,24 +1,36 @@
 const { cleanAttributeName, normalizeText, sleep, unique } = require('./utils');
-
-const OPTION_SELECTORS = [
-  '.el-select-dropdown .el-select-dropdown__item',
-  '.el-popper .el-select-dropdown__item',
-  '.jx-select-dropdown .jx-select-dropdown__item',
-  '.jx-popper [role="option"]',
-  '.jx-select-dropdown [role="option"]',
-  '.ant-select-dropdown .ant-select-item-option',
-  '.ant-select-dropdown [role="option"]',
-  '[role="listbox"] [role="option"]',
-  '.select-dropdown [role="option"]',
-  '.dropdown-menu li'
-];
+const { closeDropdown, collectVisibleOptions, openSelect } = require('./ui');
 
 async function scanRequiredAttributes(page, options = {}) {
   const errorFields = (options.errorFields || []).map((f) => f.replace(/\s+/g, '').toLowerCase());
   const skipOptionRead = options.skipOptionRead === true; // 轻量扫描：跳过选项预读，由调用方按需读取
   await ensureCategoryPaneReady(page);
   await expandMoreAttributes(page);
-  const rows = await page.evaluate((errorFields) => {
+  const rows = await collectRequiredRows(page, errorFields);
+
+  if (!rows.length) {
+    // 诊断：输出各 pane 的可见性与行数，便于定位"扫到 0 个属性"的原因
+    const diag = await page.evaluate(() => {
+      const panes = Array.from(document.querySelectorAll('.scroll-menu-pane')).map((el) => {
+        const label = el.querySelector('.scroll-menu-pane__label');
+        const rect = el.getBoundingClientRect();
+        const name = ((label && (label.innerText || label.textContent)) || '').replace(/\s+/g, '') || '(空)';
+        return `${name}[${Math.round(rect.width)}x${Math.round(rect.height)},${el.querySelectorAll('[class*="form-item"]').length}行]`;
+      });
+      return panes.join(' | ');
+    }).catch(() => '');
+    if (diag) console.warn(`[扫描] 0 行诊断 pane列表: ${diag}`);
+  }
+
+  await hydrateRowOptions(page, rows, skipOptionRead);
+  return rows;
+}
+
+/** 行收集（不含选项预读）：在"类别&属性"区域内找"必填(或校验报错)且可编辑"的行，
+ *  打 data-ms-attr-row 标记并返回行模型。独立成函数供级联发现（discoverNewRequiredAttributes）复用。
+ *  已有标记的行复用原 id——填写循环中反复收集时，早期发放的 _rowSelector 保持有效 */
+async function collectRequiredRows(page, errorFields) {
+  return page.evaluate((errorFields) => {
     const root = findCategoryAttributeRoot();
     if (!root) return [];
 
@@ -41,7 +53,7 @@ async function scanRequiredAttributes(page, options = {}) {
       if (seen.has(key)) return;
       seen.add(key);
 
-      const rowId = `ms-attr-${Date.now()}-${index}`;
+      const rowId = row.getAttribute('data-ms-attr-row') || `ms-attr-${Date.now()}-${index}`;
       row.setAttribute('data-ms-attr-row', rowId);
       result.push({
         name,
@@ -318,7 +330,8 @@ async function scanRequiredAttributes(page, options = {}) {
       const unitSelect = row.querySelector('.el-select.unit, .ant-select.unit, [class*="unit"][class*="select"]');
       if (unitSelect && row.querySelector('input:not([type="hidden"])')) return 'input';
 
-      const multi = row.querySelector('.ant-select-multiple, .el-select__tags, [aria-multiselectable="true"], [class*="multiple"], [class*="tags"]');
+      // 多选判定必须用精确类名：[class*="tags"] 会把"已有一个tag的单选"（jx 单选有值时渲染 jx-tag）误判成多选
+      const multi = row.querySelector('.ant-select-multiple, .el-select__tags, [aria-multiselectable="true"], .jx-select__selection.is-multiple, [class*="select__multiple"]');
       if (multi) return 'multi_select';
 
       const hasSelect = row.querySelector('.el-select, .ant-select, [role="combobox"], select, [class*="select"]');
@@ -363,7 +376,8 @@ async function scanRequiredAttributes(page, options = {}) {
       }
 
       const selectedNodes = Array.from(row.querySelectorAll(
-        '.el-tag, .el-select__tags-text, .ant-select-selection-item, [class*="selection-item"], .el-select-dropdown__item.selected, .jx-pro-option.selected, .jx-select__placeholder'
+        // jx 单选有值时渲染 .jx-tag（scanner 的多选判定注释也依赖此事实），漏了会把已填行误判为空、修复轮次里反复重填
+        '.el-tag, .jx-tag, .el-select__tags-text, .ant-select-selection-item, [class*="selection-item"], .el-select-dropdown__item.selected, .jx-pro-option.selected, .jx-select__placeholder'
       )).map(textOf).filter((text) => text && !isPlaceholderText(text));
       if (selectedNodes.length) return true;
 
@@ -376,21 +390,11 @@ async function scanRequiredAttributes(page, options = {}) {
       });
     }
   }, errorFields);
+}
 
-  if (!rows.length) {
-    // 诊断：输出各 pane 的可见性与行数，便于定位"扫到 0 个属性"的原因
-    const diag = await page.evaluate(() => {
-      const panes = Array.from(document.querySelectorAll('.scroll-menu-pane')).map((el) => {
-        const label = el.querySelector('.scroll-menu-pane__label');
-        const rect = el.getBoundingClientRect();
-        const name = ((label && (label.innerText || label.textContent)) || '').replace(/\s+/g, '') || '(空)';
-        return `${name}[${Math.round(rect.width)}x${Math.round(rect.height)},${el.querySelectorAll('[class*="form-item"]').length}行]`;
-      });
-      return panes.join(' | ');
-    }).catch(() => '');
-    if (diag) console.warn(`[扫描] 0 行诊断 pane列表: ${diag}`);
-  }
-
+/** 为行模型预读选项：select/multi_select 实际打开下拉读真实选项；材质表格临时加行读取后清理。
+ *  未填或有校验错误的行才读；skipOptionRead=true 时跳过（轻量扫描） */
+async function hydrateRowOptions(page, rows, skipOptionRead) {
   for (const row of rows) {
     row.name = cleanAttributeName(row.name);
     if (skipOptionRead) continue;
@@ -412,7 +416,6 @@ async function scanRequiredAttributes(page, options = {}) {
       }
     }
   }
-
   return rows;
 }
 
@@ -434,12 +437,24 @@ async function ensureCategoryPaneReady(page, timeoutMs = 10000) {
       }
       lastCount = count;
     } else if (!retriedClick) {
-      // 导航点击可能未生效，用真实点击重试一次
-      const nav = page.locator('.scroll-menu-nav__item')
-        .filter({ hasText: /类别&属性|类目&属性|分类&属性/ }).first();
-      if (await nav.count().catch(() => 0)) {
-        await nav.click({ timeout: 2000 }).catch(() => {});
-        retriedClick = true;
+      // 仅当"类别&属性"pane 整个不可见（真·导航失败）才重点导航；
+      // pane 可见但行数为 0 时重点导航可能把已激活的 pane 点折叠，反而更糟
+      const paneVisible = await page.evaluate(() => {
+        return Array.from(document.querySelectorAll('.scroll-menu-pane')).some((el) => {
+          const label = el.querySelector('.scroll-menu-pane__label');
+          if (!label) return false;
+          const r = label.getBoundingClientRect();
+          const t = String(label.innerText || label.textContent || '').replace(/\s+/g, '');
+          return r.width > 0 && r.height > 0 && /类别&属性|类目&属性|分类&属性/.test(t);
+        });
+      }).catch(() => false);
+      if (!paneVisible) {
+        const nav = page.locator('.scroll-menu-nav__item')
+          .filter({ hasText: /类别&属性|类目&属性|分类&属性/ }).first();
+        if (await nav.count().catch(() => 0)) {
+          await nav.click({ timeout: 2000 }).catch(() => {});
+          retriedClick = true;
+        }
       }
     }
     await sleep(600);
@@ -447,14 +462,14 @@ async function ensureCategoryPaneReady(page, timeoutMs = 10000) {
   return lastCount > 0;
 }
 
-/** 展开"更多属性"折叠区：部分必填属性（如护理说明）可能藏在折叠的列里，不展开就扫不到 */
+/** 展开"更多属性"折叠区：按钮是开关式（is-collapse=当前折叠），只在折叠态点击，避免把已展开的又点回收起 */
 async function expandMoreAttributes(page) {
-  const btn = page.locator('.expand-button-bar button', { hasText: /更多属性/ }).first();
-  if (await btn.count().catch(() => 0)) {
-    if (await btn.isVisible().catch(() => false)) {
-      await btn.click({ timeout: 2000 }).catch(() => {});
-      await sleep(400);
-    }
+  const btn = page.locator('.expand-button-bar button').first();
+  if (!(await btn.count().catch(() => 0))) return;
+  const collapsed = await btn.evaluate((el) => String(el.className || '').includes('is-collapse')).catch(() => false);
+  if (collapsed) {
+    await btn.click({ timeout: 2000 }).catch(() => {});
+    await sleep(400);
   }
 }
 
@@ -494,63 +509,6 @@ async function readOptionsForAttribute(page, attribute) {
   return unique(options)
     .map((item) => item.trim())
     .filter((item) => item && normalizeText(item));
-}
-
-async function openSelect(row) {
-  // 注意：不兜底裸 input——宽泛匹配会点到行外的元素（如左侧商品列表），误触"是否确认离开"弹窗
-  const targets = [
-    '.jx-select__wrapper',
-    '.jx-select',
-    '.el-select',
-    '.ant-select',
-    '[role="combobox"]',
-    '.el-input',
-    '.ant-select-selector',
-    'select',
-    'input[readonly]'
-  ];
-
-  for (const selector of targets) {
-    const locator = row.locator(selector);
-    const count = await locator.count().catch(() => 0);
-    for (let i = 0; i < count; i += 1) {
-      const item = locator.nth(i);
-      if (!(await item.isVisible().catch(() => false))) continue;
-      try {
-        await item.scrollIntoViewIfNeeded();
-        await item.click({ timeout: 2500 });
-        return true;
-      } catch (_) {
-        continue;
-      }
-    }
-  }
-  return false;
-}
-
-async function collectVisibleOptions(page) {
-  const options = [];
-  for (const selector of OPTION_SELECTORS) {
-    const texts = await page.locator(selector).evaluateAll((nodes) => {
-      function visible(el) {
-        const rect = el.getBoundingClientRect();
-        const style = window.getComputedStyle(el);
-        return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
-      }
-      return nodes
-        .filter((node) => visible(node))
-        .filter((node) => !/disabled|is-disabled|ant-select-item-option-disabled/i.test(`${node.className || ''}`))
-        .map((node) => (node.innerText || node.textContent || '').replace(/\s+/g, ' ').trim())
-        .filter(Boolean);
-    }).catch(() => []);
-    options.push(...texts);
-  }
-  return unique(options);
-}
-
-async function closeDropdown(page) {
-  await page.keyboard.press('Escape').catch(() => {});
-  await sleep(100);
 }
 
 async function readMaterialTableOptions(page, attribute) {
@@ -638,6 +596,11 @@ async function readPaneAttributeNames(page) {
         const rect = el.getBoundingClientRect();
         return rect.width > 0 && rect.height > 0;
       })
+      .filter((el) => {
+        // 漏扫对比只关心必填项：可选属性永远不会被 scanRequiredAttributes 收集，
+        // 把它们算进 missed 会造成"永远扫不全"的无限重扫
+        return String(el.className || '').split(/\s+/).some((t) => t === 'is-required' || t === 'required');
+      })
       .map((el) => {
         const label = el.querySelector('.jx-form-item__label, .el-form-item__label, label');
         return String((label && (label.innerText || label.textContent)) || '')
@@ -649,9 +612,60 @@ async function readPaneAttributeNames(page) {
   }).catch(() => []);
 }
 
+/** 深度诊断：逐个输出 product-attribute-item 的采集判定状态，定位"pane有属性但扫描0行"卡在哪个环节 */
+async function diagnoseScanZeroRows(page) {
+  return page.evaluate(() => {
+    function visible(el) {
+      const r = el.getBoundingClientRect();
+      const s = window.getComputedStyle(el);
+      return r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden';
+    }
+    return Array.from(document.querySelectorAll('.product-attribute-item')).slice(0, 20).map((el) => {
+      const label = el.querySelector('.jx-form-item__label, label');
+      const r = el.getBoundingClientRect();
+      return {
+        name: String((label && (label.innerText || label.textContent)) || '').replace(/[:：\s]/g, '').slice(0, 10),
+        requiredCls: String(el.className || '').includes('is-required'),
+        visible: visible(el),
+        rect: `${Math.round(r.width)}x${Math.round(r.height)}`,
+        parentDisplay: (el.parentElement && window.getComputedStyle(el.parentElement).display) || '',
+        hasInput: Boolean(el.querySelector('input, textarea, select'))
+      };
+    });
+  }).catch(() => []);
+}
+
+/** 级联发现：轻量收集 pane 内"必填且未填(或报错)"的行，与已知字段名对比，返回新出现的行（含选项预读）。
+ *  供填写循环在每填完一个字段后调用——pane 已就绪，不做就绪等待/折叠展开。
+ *  字段名对比沿用 scanUntilComplete 的宽松规则（去空白后双向包含），避免格式微差造成漏发现 */
+async function discoverNewRequiredAttributes(page, options = {}) {
+  const knownNames = (options.knownNames || []).map((name) => String(name || '').replace(/\s+/g, '').toLowerCase());
+  const errorFields = (options.errorFields || []).map((f) => f.replace(/\s+/g, '').toLowerCase());
+
+  let rows;
+  try {
+    rows = await collectRequiredRows(page, errorFields);
+  } catch (_) {
+    return [];
+  }
+
+  const isKnown = (rawName) => {
+    const n = String(rawName || '').replace(/\s+/g, '').toLowerCase();
+    if (!n) return true;
+    return knownNames.some((k) => k === n || k.includes(n) || n.includes(k));
+  };
+
+  const fresh = rows.filter((row) => (!row.alreadyFilled || row.errorMessage) && !isKnown(row.name));
+  await hydrateRowOptions(page, fresh, false);
+  return fresh;
+}
+
 module.exports = {
   scanRequiredAttributes,
+  collectRequiredRows,
+  discoverNewRequiredAttributes,
   readPaneAttributeNames,
   readOptionsForAttribute,
-  readMaterialTableOptions
+  readMaterialTableOptions,
+  diagnoseScanZeroRows
 };

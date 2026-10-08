@@ -78,6 +78,22 @@ async function waitDialogClosed(page, dialog, timeoutMs = 9000) {
   return false;
 }
 
+/** 点击带强制兜底：预览区随图片懒加载/动画持续位移时（element is not stable），
+ *  普通点击超时后用 force 点击跳过稳定性检查（仍是真实鼠标事件，V2 图标可响应） */
+async function clickStable(locator, timeout = 4000) {
+  try {
+    await locator.click({ timeout });
+    return true;
+  } catch (_) {
+    try {
+      await locator.click({ timeout: 2000, force: true });
+      return true;
+    } catch (_e) {
+      return false;
+    }
+  }
+}
+
 async function cleanDescription(page) {
   console.log('[描述] 开始清理产品描述中的文字模块...');
 
@@ -92,7 +108,11 @@ async function cleanDescription(page) {
     return { status: 'skipped', deleted: 0, reason: '编辑描述按钮不可见' };
   }
 
-  await editBtn.click({ timeout: 5000 });
+  await editBtn.scrollIntoViewIfNeeded().catch(() => {});
+  if (!(await clickStable(editBtn))) {
+    console.warn('[描述] "编辑描述"按钮点击失败（元素持续位移），跳过清理');
+    return { status: 'skipped', deleted: 0, reason: '编辑描述按钮点击失败' };
+  }
   console.log('[描述] 已点击"编辑描述"按钮');
 
   // 2. 等待弹窗打开
@@ -150,10 +170,10 @@ async function deleteTextModules(page, dialog) {
     try {
       await delBtn.click({ timeout: 3000 });
     } catch (_) {
-      // 图标可能 hover 后才显示/可交互，悬停模块项后重试
+      // 图标可能 hover 后才显示；列表删除后布局重排导致 not stable 时 force 点击跳过稳定性检查
       try {
         await item.hover({ timeout: 2000 });
-        await delBtn.click({ timeout: 3000 });
+        await delBtn.click({ timeout: 2500, force: true });
       } catch (_e) {
         clicked = false;
       }
@@ -222,7 +242,11 @@ async function saveDescriptionDialog(page, dialog) {
     return;
   }
 
-  await saveBtn.click({ timeout: 5000 });
+  if (!(await clickStable(saveBtn))) {
+    console.warn('[描述] 保存按钮点击失败');
+    await closeDescriptionDialog(page, dialog);
+    return;
+  }
   console.log('[描述] 已点击保存按钮');
 
   if (await waitDialogClosed(page, dialog, 9000)) {

@@ -516,7 +516,7 @@ async function copyMissingFile(from, to) {
 }
 
 // 仅由打包包维护、UI 不会修改的开发者配置键：升级时始终以打包包为准，避免旧值残留
-const DEVELOPER_CONFIG_KEYS = ['startUrl', 'browser', 'thresholds', 'modules', 'knowledgeBase', 'update'];
+const DEVELOPER_CONFIG_KEYS = ['startUrl', 'browser', 'thresholds', 'modules', 'knowledgeBase', 'preSave', 'update'];
 
 async function syncBundledDefaults() {
   const bundledPath = path.join(DEFAULT_CONFIG_DIR, 'config.json');

@@ -117,6 +117,36 @@ async function chooseBestOption({
   });
 }
 
+/** 纯本地快速匹配链（exact → normalized → contains → included_by），不查配置、不触发 AI/兜底。
+ *  供填写时对"当前下拉活选项"重匹配使用；完整决策（含同义词/模糊/二次选择/兜底）仍以 chooseBestOption 为权威 */
+function matchLocally(value, options) {
+  const text = String(value == null ? '' : value).trim();
+  if (!text) return null;
+  const opts = (options || []).map((item) => String(item || '').trim()).filter(Boolean);
+
+  const exact = opts.find((option) => option === text);
+  if (exact) return { option: exact, method: 'exact' };
+
+  const normalizedValue = normalizeText(text);
+  if (!normalizedValue) return null;
+  const normalized = opts.find((option) => normalizeText(option) === normalizedValue);
+  if (normalized) return { option: normalized, method: 'normalized' };
+
+  const contains = opts.find((option) => {
+    const normalizedOption = normalizeText(option);
+    return normalizedOption && normalizedOption.includes(normalizedValue);
+  });
+  if (contains) return { option: contains, method: 'contains' };
+
+  const includedBy = opts.find((option) => {
+    const normalizedOption = normalizeText(option);
+    return normalizedOption && normalizedValue.includes(normalizedOption);
+  });
+  if (includedBy) return { option: includedBy, method: 'included_by' };
+
+  return null;
+}
+
 function matchBySynonym(value, options, synonyms) {
   const normalizedValue = normalizeText(value);
   for (const [key, words] of Object.entries(synonyms || {})) {
@@ -258,6 +288,7 @@ function manual(reason) {
 
 module.exports = {
   chooseBestOption,
+  matchLocally,
   normalizeText,
   similarity
 };
