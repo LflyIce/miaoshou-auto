@@ -1,7 +1,7 @@
 // UI 原语层：妙手页面混合 jx-* / el-* / ant-* 三套组件库，
 // 所有下拉交互的选择器与基础操作集中在此一处维护，scanner / filler / sku_filler 共用。
 // 页面换肤或新增组件库时只改这个文件。
-const { sleep, unique } = require('./utils');
+const { sleep } = require('./utils');
 
 /** 下拉选项节点选择器（三套组件库的可见选项） */
 const OPTION_SELECTORS = [
@@ -87,56 +87,52 @@ async function closeDropdown(page) {
   await sleep(100);
 }
 
-/** 在当前可见选项中点击匹配项：exact=true 全等，否则双向包含。返回是否点到 */
+/** 在当前可见选项中点击匹配项：exact=true 全等，否则双向包含。返回是否点到。
+ *  单次 evaluate 完成：重页面（大规格表）上逐节点 Playwright 往返每次都强制布局，几十个选项能拖到几十秒 */
 async function clickOption(page, value, exact) {
-  for (const selector of OPTION_SELECTORS) {
-    const handles = await page.locator(selector).elementHandles().catch(() => []);
-    for (const handle of handles) {
-      const matched = await handle.evaluate((node, args) => {
-        const rect = node.getBoundingClientRect();
-        const style = window.getComputedStyle(node);
-        const visible = rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
-        if (!visible) return false;
-        if (/disabled|is-disabled|ant-select-item-option-disabled/i.test(`${node.className || ''}`)) return false;
+  return page.evaluate(({ selectors, value, exact }) => {
+    const isUsable = (node) => {
+      const rect = node.getBoundingClientRect();
+      const style = window.getComputedStyle(node);
+      const visible = rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+      if (!visible) return false;
+      return !/disabled|is-disabled|ant-select-item-option-disabled/i.test(`${node.className || ''}`);
+    };
+    for (const selector of selectors) {
+      for (const node of Array.from(document.querySelectorAll(selector))) {
+        if (!isUsable(node)) continue;
         const text = (node.innerText || node.textContent || '').replace(/\s+/g, ' ').trim();
-        return args.exact ? text === args.value : text.includes(args.value) || args.value.includes(text);
-      }, { value, exact }).catch(() => false);
-
-      if (!matched) continue;
-      try {
-        await handle.click({ timeout: 2500 });
+        const matched = exact ? text === value : text.includes(value) || value.includes(text);
+        if (!matched) continue;
+        node.click();
         return true;
-      } catch (_) {
-        continue;
       }
     }
-  }
-  return false;
+    return false;
+  }, { selectors: OPTION_SELECTORS, value, exact }).catch(() => false);
 }
 
-/** 点击第一个可见且可用的选项，返回其文本（兜底场景），无则返回 '' */
+/** 点击第一个可见且可用的选项，返回其文本（兜底场景），无则返回 ''。同样单次 evaluate */
 async function clickFirstVisibleOption(page) {
-  for (const selector of OPTION_SELECTORS) {
-    const handles = await page.locator(selector).elementHandles().catch(() => []);
-    for (const handle of handles) {
-      const text = await handle.evaluate((node) => {
-        const rect = node.getBoundingClientRect();
-        const style = window.getComputedStyle(node);
-        const visible = rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
-        if (!visible) return '';
-        if (/disabled|is-disabled|ant-select-item-option-disabled/i.test(`${node.className || ''}`)) return '';
-        return (node.innerText || node.textContent || '').replace(/\s+/g, ' ').trim();
-      }).catch(() => '');
-      if (!text) continue;
-      try {
-        await handle.click({ timeout: 2500 });
+  return page.evaluate(({ selectors }) => {
+    const isUsable = (node) => {
+      const rect = node.getBoundingClientRect();
+      const style = window.getComputedStyle(node);
+      const visible = rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+      if (!visible) return false;
+      return !/disabled|is-disabled|ant-select-item-option-disabled/i.test(`${node.className || ''}`);
+    };
+    for (const selector of selectors) {
+      for (const node of Array.from(document.querySelectorAll(selector))) {
+        if (!isUsable(node)) continue;
+        const text = (node.innerText || node.textContent || '').replace(/\s+/g, ' ').trim();
+        if (!text) continue;
+        node.click();
         return text;
-      } catch (_) {
-        continue;
       }
     }
-  }
-  return '';
+    return '';
+  }, { selectors: OPTION_SELECTORS }).catch(() => '');
 }
 
 /** 在行内搜索框输入过滤词（精确点选失败后的兜底路径） */
@@ -158,40 +154,43 @@ async function typeSearchValue(row, page, value) {
   return false;
 }
 
-/** 回读校验：行文本或行内输入框的值包含目标值即通过 */
+/** 回读校验（单次 evaluate）：行文本或行内输入框的值包含目标值即通过 */
 async function verifyRowContains(row, value) {
-  const text = await row.innerText().catch(() => '');
-  if (text.includes(value)) return true;
-  const inputs = row.locator('input, textarea');
-  const count = await inputs.count().catch(() => 0);
-  for (let i = 0; i < count; i += 1) {
-    const actual = await inputs.nth(i).inputValue().catch(() => '');
-    if (actual.includes(value)) return true;
-  }
-  return false;
+  return row.evaluate((el, target) => {
+    const text = el.innerText || el.textContent || '';
+    if (text.includes(target)) return true;
+    for (const input of Array.from(el.querySelectorAll('input, textarea'))) {
+      if (String(input.value || '').includes(target)) return true;
+    }
+    return false;
+  }, value).catch(() => false);
 }
 
-/** 收集当前页面所有可见、可用的下拉选项文本（一次 evaluate 拿全，避免逐节点往返） */
+/** 收集当前页面所有可见、可用的下拉选项文本（单次 evaluate 一次遍历全部选择器，
+ *  旧版每个选择器一次 evaluateAll 共 10 次往返，每个字段填写前的活选项重匹配都会调它） */
 async function collectVisibleOptions(page) {
-  const options = [];
-  for (const selector of OPTION_SELECTORS) {
-    const locator = page.locator(selector);
-    if (typeof locator.evaluateAll !== 'function') continue; // 单测 fake locator 兼容
-    const texts = await locator.evaluateAll((nodes) => {
-      function visible(el) {
-        const rect = el.getBoundingClientRect();
-        const style = window.getComputedStyle(el);
-        return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+  return page.evaluate((selectors) => {
+    const texts = [];
+    const seen = new Set();
+    const isUsable = (node) => {
+      const rect = node.getBoundingClientRect();
+      const style = window.getComputedStyle(node);
+      const visible = rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+      if (!visible) return false;
+      return !/disabled|is-disabled|ant-select-item-option-disabled/i.test(`${node.className || ''}`);
+    };
+    for (const selector of selectors) {
+      for (const node of Array.from(document.querySelectorAll(selector))) {
+        if (!isUsable(node)) continue;
+        const text = (node.innerText || node.textContent || '').replace(/\s+/g, ' ').trim();
+        if (text && !seen.has(text)) {
+          seen.add(text);
+          texts.push(text);
+        }
       }
-      return nodes
-        .filter((node) => visible(node))
-        .filter((node) => !/disabled|is-disabled|ant-select-item-option-disabled/i.test(`${node.className || ''}`))
-        .map((node) => (node.innerText || node.textContent || '').replace(/\s+/g, ' ').trim())
-        .filter(Boolean);
-    }).catch(() => []);
-    options.push(...texts);
-  }
-  return unique(options);
+    }
+    return texts;
+  }, OPTION_SELECTORS).catch(() => []);
 }
 
 module.exports = {

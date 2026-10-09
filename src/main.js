@@ -15,6 +15,7 @@ const { ProductExporter } = require('./product_export');
 const { readSkuTableData, readSpecInputValues } = require('./sku_reader');
 const { fillSkuProperties } = require('./sku_filler');
 const { cleanDescription } = require('./description_cleaner');
+const { sanitizeMaterialValues } = require('./material_policy');
 const {
   ensureProjectDirs,
   getBrowserContextOptions,
@@ -293,7 +294,7 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
     }
     if (skuResult.status === 'success' && skuResult.changed) {
       skuEdited = true;
-      console.log(`[规格] 编辑完成: 规格一${skuResult.specOneTitleChanged ? '标题已改' : ''}删除${skuResult.specOneTrimmed}项, 规格二删除${skuResult.specTwoTrimmed}项`);
+      console.log(`[规格] 编辑完成: 规格一${skuResult.specOneTitleChanged ? '标题已改' : ''}删除${skuResult.specOneTrimmed}项, 规格二${skuResult.specTwoTitleChanged ? `标题${skuResult.specTwoRenamedFrom}改${skuResult.specTwoRenamedTo}、` : ''}删除${skuResult.specTwoTrimmed}项`);
     } else if (skuResult.status === 'skipped') {
       console.log(`[规格] ${skuResult.reason}`);
     }
@@ -890,6 +891,14 @@ async function fixFieldByErrorName(page, config, logger, summary, productInfo, f
       }
     }
   }
+  // 成分/材质约束：建议值或 AI 直出值可能是多值串，材质只选一种、涤纶与聚酯不同时选
+  if (controlType === 'multi_select' && finalValue) {
+    const sanitized = sanitizeMaterialValues(fieldName, finalValue);
+    if (sanitized.note) {
+      console.log(`[${logTag}][成分] ${fieldName}: ${sanitized.note}`);
+      finalValue = sanitized.values.join(',');
+    }
+  }
   if ((controlType === 'select' || controlType === 'multi_select') && attr.options.length && finalValue) {
     const matched = await chooseBestOption({
       attrName: fieldName,
@@ -1001,6 +1010,20 @@ async function scanUntilComplete(page, options = {}) {
       });
     }, missed).catch(() => []);
     if (diag.length) console.warn(`[扫描] 漏扫诊断: ${diag.join(' | ')}`);
+
+    // 丢弃原因：collectRequiredRows 在页面里记录的"必填但被过滤链丢掉"日志，按漏打名字匹配输出
+    const dropDiag = await page.evaluate((names) => {
+      const log = Array.isArray(window.__msAttrScanDropped) ? window.__msAttrScanDropped.slice(-60) : [];
+      return names.map((name) => {
+        const n = String(name || '').replace(/\s+/g, '');
+        const hits = log.filter((item) => {
+          const d = String(item.name || '').replace(/\s+/g, '');
+          return d && (d === n || d.includes(n) || n.includes(d));
+        }).map((item) => item.reason);
+        return hits.length ? `${name} <- ${[...new Set(hits)].join(';')}` : '';
+      }).filter(Boolean);
+    }, missed).catch(() => []);
+    if (dropDiag.length) console.warn(`[扫描] 丢弃原因: ${dropDiag.join(' | ')}`);
   }
   return attributes;
 }
@@ -1146,11 +1169,15 @@ async function decideFromKnowledge(attr, known, productInfo) {
 
   if (attr.controlType === 'multi_select') {
     if (!Array.isArray(attr.options) || !attr.options.length) return null;
+    // 成分/材质约束同样作用于知识库历史值：材质只选一种，涤纶与聚酯不同时选
+    const sanitized = sanitizeMaterialValues(attr.name, commonValues.map((item) => item.value));
+    if (sanitized.note) console.log(`[成分] ${attr.name}: ${sanitized.note}`);
+    const keptValues = new Set(sanitized.values);
     const matchedValues = [];
     const reasons = [];
     let confidence = 1;
 
-    for (const item of commonValues.slice(0, 5)) {
+    for (const item of commonValues.filter((item) => keptValues.has(item.value)).slice(0, 5)) {
       const matched = await chooseBestOption({
         attrName: attr.name,
         inferredValue: item.value,
@@ -1170,7 +1197,7 @@ async function decideFromKnowledge(attr, known, productInfo) {
         { value: matchedValues.join(','), count: matchedValues.length },
         'knowledge_multi_match',
         confidence,
-        `命中本地类目知识库：${reasons.join('; ')}`
+        `命中本地类目知识库：${reasons.join('; ')}${sanitized.note ? `；${sanitized.note}` : ''}`
       );
     }
   }
@@ -1311,7 +1338,10 @@ async function decideFinalValue(attr, ai, productInfo, secondChoiceCache = null)
   }
 
   if (attr.controlType === 'multi_select') {
-    const values = toArrayValue(ai.value);
+    // 成分/材质约束：材质只选一种，涤纶与聚酯不同时选（先裁剪再匹配，省掉多余的二次 AI 调用）
+    const sanitized = sanitizeMaterialValues(attr.name, ai.value);
+    if (sanitized.note) console.log(`[成分] ${attr.name}: ${sanitized.note}`);
+    const values = sanitized.values;
     if (!values.length) {
       return chooseBestOption({
         attrName: attr.name,
@@ -1355,7 +1385,7 @@ async function decideFinalValue(attr, ai, productInfo, secondChoiceCache = null)
       value: matched,
       method: 'multi_match',
       confidence,
-      reason: reasons.join('; ')
+      reason: `${reasons.join('; ')}${sanitized.note ? `；${sanitized.note}` : ''}`
     };
   }
 

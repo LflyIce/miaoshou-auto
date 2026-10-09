@@ -31,6 +31,9 @@ async function scanRequiredAttributes(page, options = {}) {
  *  已有标记的行复用原 id——填写循环中反复收集时，早期发放的 _rowSelector 保持有效 */
 async function collectRequiredRows(page, errorFields) {
   return page.evaluate((errorFields) => {
+    // 丢弃日志：记录"必填但被过滤链丢掉"的行及原因，供 scanUntilComplete 漏扫诊断读取（window 变量，随最近一次扫描覆盖）
+    const dropLog = [];
+    try { window.__msAttrScanDropped = dropLog; } catch (_) { /* 极端环境无 window */ }
     const root = findCategoryAttributeRoot();
     if (!root) return [];
 
@@ -41,16 +44,29 @@ async function collectRequiredRows(page, errorFields) {
     candidates.forEach((row, index) => {
       const validationError = extractValidationError(row);
       if (!isRequiredRow(row) && !validationError) return;
-      if (!hasEditableControl(row)) return;
+      if (!hasEditableControl(row)) {
+        if (isRequiredRow(row)) dropLog.push({ name: textOf(row).slice(0, 16), reason: '无可编辑控件' });
+        return;
+      }
 
       const name = extractName(row);
-      if (!name || shouldIgnoreName(name, row)) return;
+      if (!name) {
+        dropLog.push({ name: textOf(row).slice(0, 16), reason: '名称提取为空' });
+        return;
+      }
+      if (shouldIgnoreName(name, row)) {
+        dropLog.push({ name, reason: `忽略名单命中<${ignoreKeywordHit(`${name} ${textOf(row)}`)}>` });
+        return;
+      }
 
       const controlType = detectControlType(row);
       const alreadyFilled = detectAlreadyFilled(row, controlType);
 
       const key = `${name}::${controlType}`;
-      if (seen.has(key)) return;
+      if (seen.has(key)) {
+        dropLog.push({ name, reason: `同名去重(key=${key})` });
+        return;
+      }
       seen.add(key);
 
       const rowId = row.getAttribute('data-ms-attr-row') || `ms-attr-${Date.now()}-${index}`;
@@ -175,7 +191,10 @@ async function collectRequiredRows(page, errorFields) {
           if (selector === '[class*="form-item"]' && !isRowLevelFormItem(el)) return;
           const text = textOf(el);
           if (!text) return;
-          if (!isCategoryAttrItem(el) && text.length > 600) return;
+          if (!isCategoryAttrItem(el) && text.length > 600) {
+            if (isRequiredRow(el)) dropLog.push({ name: text.slice(0, 16), reason: `行文本超600(${text.length}字)` });
+            return;
+          }
           if (!hasEditableControl(el)) return;
           seenRows.add(el);
           rows.push(el);
@@ -185,10 +204,26 @@ async function collectRequiredRows(page, errorFields) {
       // 容器只有"类名级必填"（token 为 is-required/required）或 category-attr 才遮蔽内部行。
       // 不能用 isRequiredRow 判断：它扫描后代红色星号伪元素，会让"产品属性"这类分组容器
       // 因内层必填行的星号被误判为必填，从而吞掉全部内层属性行
-      return rows.filter((row) => {
-        if (isCategoryAttrItem(row)) return true;
-        return !rows.some((other) => other !== row && other.contains(row) && (isRequiredClass(other) || isCategoryAttrItem(other)));
-      });
+      const kept = [];
+      for (const row of rows) {
+        if (isCategoryAttrItem(row)) {
+          kept.push(row);
+          continue;
+        }
+        const shade = rows.find((other) => other !== row && other.contains(row) && (isRequiredClass(other) || isCategoryAttrItem(other)));
+        if (shade) {
+          if (isRequiredRow(row) || extractValidationError(row)) {
+            const rowName = extractName(row) || textOf(row);
+            dropLog.push({
+              name: rowName.slice(0, 16),
+              reason: `容器遮蔽<${String(shade.className || '').split(/\s+/).slice(0, 4).join(' ')}>`
+            });
+          }
+          continue;
+        }
+        kept.push(row);
+      }
+      return kept;
     }
 
     /** 类名 token 以 form-item 结尾（jx-form-item/el-form-item/pro-form-item），排除 __label 等内部结构 */
@@ -304,16 +339,24 @@ async function collectRequiredRows(page, errorFields) {
       return firstLine && firstLine.length <= 60 ? firstLine : '';
     }
 
+    /** 返回行文本命中的忽略关键词（无命中返回空串），供 shouldIgnoreName 与丢弃日志共用 */
+    function ignoreKeywordHit(text) {
+      const match = /发货仓库|运费模板|发布站点|素材语言|发货时效|店铺|模板|保存当前配置|保存模板|模板管理|英语标题|AI生成|产品素材图|图片翻译|图片编辑|导出图片|添加水印|选中前|批量|同步|创建仓库|SKU|价格|库存|产品类别|商品类别|商品类目|产品类目|产品属性|商品属性|类目|分类/.exec(String(text || ''));
+      return match ? match[0] : '';
+    }
+
     function shouldIgnoreName(name, row) {
-      const text = `${name} ${textOf(row)}`;
-      if (/发货仓库|运费模板|发布站点|素材语言|发货时效|店铺|模板|保存当前配置|保存模板|模板管理|英语标题|AI生成|产品素材图|图片翻译|图片编辑|导出图片|添加水印|选中前|批量|同步|创建仓库|SKU|价格|库存|产品类别|商品类别|商品类目|产品类目|产品属性|商品属性|类目|分类/.test(text)) {
-        const nameClean = name.replace(/\s+/g, '').toLowerCase();
-        for (const ef of errorFields) {
-          if (nameClean.includes(ef) || ef.includes(nameClean)) return false;
-        }
-        return true;
+      // 报错文案不计入忽略判定：带预置校验错误的行，其"产品属性【xx】的值不能为空"里的 产品属性 等词
+      // 是报错模板的一部分而非行本身的内容，整行文本匹配会把这类必填行误杀导致漏扫（只能靠保存失败后兜底）
+      const clone = row.cloneNode(true);
+      clone.querySelectorAll('.jx-form-item__error, .ant-form-item-explain-error, .ant-form-item-extra, .invalid-feedback, [role="alert"], [class*="error"], [class*="Error"]')
+        .forEach((el) => el.remove());
+      if (!ignoreKeywordHit(`${name} ${textOf(clone)}`)) return false;
+      const nameClean = name.replace(/\s+/g, '').toLowerCase();
+      for (const ef of errorFields) {
+        if (nameClean.includes(ef) || ef.includes(nameClean)) return false;
       }
-      return false;
+      return true;
     }
 
     function hasEditableControl(row) {

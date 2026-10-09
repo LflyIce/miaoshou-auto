@@ -6,6 +6,7 @@ class FakePage {
   constructor() {
     this.row = new FakeRow(this);
     this.dropdownOpen = false;
+    this.optionTexts = ['\u5851\u6599', '\u91d1\u5c5e'];
     this.selectedMaterial = '';
     this.ratio = '';
     this.keyboard = { press: async () => {} };
@@ -13,13 +14,32 @@ class FakePage {
 
   locator(selector) {
     if (selector === '#material-row') return new FakeLocator([this.row]);
-    if (selector.includes('el-select-dropdown__item')) {
-      return new FakeLocator(this.dropdownOpen ? [
-        new FakeOption(this, '\u5851\u6599'),
-        new FakeOption(this, '\u91d1\u5c5e')
-      ] : []);
-    }
     return new FakeLocator([]);
+  }
+
+  // \u5355\u6b21 evaluate \u7248\u539f\u8bed\u7684\u6a21\u62df\uff1a\u6536\u96c6\uff08\u9009\u62e9\u5668\u6570\u7ec4\uff09/\u70b9\u9009\uff08{value,exact}\uff09/\u515c\u5e95\u70b9\u9009\uff08{selectors}\uff09
+  async evaluate(fn, arg) {
+    if (Array.isArray(arg)) {
+      return this.dropdownOpen ? [...this.optionTexts] : [];
+    }
+    if (arg && 'value' in arg) {
+      if (!this.dropdownOpen) return false;
+      const target = this.optionTexts.find((text) => arg.exact
+        ? text === arg.value
+        : text.includes(arg.value) || arg.value.includes(text));
+      if (!target) return false;
+      this.selectedMaterial = target;
+      this.dropdownOpen = false;
+      return true;
+    }
+    if (arg && Array.isArray(arg.selectors)) {
+      if (!this.dropdownOpen) return '';
+      const text = this.optionTexts.find((t) => t);
+      this.selectedMaterial = text;
+      this.dropdownOpen = false;
+      return text;
+    }
+    return undefined;
   }
 }
 
@@ -48,6 +68,11 @@ class FakeRow {
 
   async innerText() {
     return ['\u6750\u6599', this.page.selectedMaterial, this.page.ratio].filter(Boolean).join(' ');
+  }
+
+  async evaluate(fn, value) {
+    const text = ['\u6750\u6599', this.page.selectedMaterial, this.page.ratio].filter(Boolean).join(' ');
+    return text.includes(value);
   }
 
   async scrollIntoViewIfNeeded() {}
@@ -96,12 +121,8 @@ class FakeLocator {
     return this.items[0].innerText();
   }
 
-  async evaluate(fn) {
-    return this.items[0].evaluate(fn);
-  }
-
-  async elementHandles() {
-    return this.items;
+  async evaluate(fn, arg) {
+    return this.items[0].evaluate(fn, arg);
   }
 }
 
@@ -136,34 +157,6 @@ class FakeSelect {
 
   async click() {
     this.page.dropdownOpen = true;
-  }
-}
-
-class FakeOption {
-  constructor(page, text) {
-    this.page = page;
-    this.innerText = text;
-    this.textContent = text;
-    this.className = 'el-select-dropdown__item';
-  }
-
-  getBoundingClientRect() {
-    return { width: 100, height: 24 };
-  }
-
-  async evaluate(fn, args) {
-    const oldWindow = global.window;
-    global.window = { getComputedStyle: () => ({ display: 'block', visibility: 'visible' }) };
-    try {
-      return fn(this, args);
-    } finally {
-      global.window = oldWindow;
-    }
-  }
-
-  async click() {
-    this.page.selectedMaterial = this.innerText;
-    this.page.dropdownOpen = false;
   }
 }
 

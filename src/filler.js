@@ -236,15 +236,15 @@ async function fillMaterialRatio(row, value) {
 }
 
 async function verifyMaterialRatio(row, value) {
-  const text = await row.innerText().catch(() => '');
-  if (text.includes(value)) return true;
-  const inputs = row.locator('input, textarea');
-  const count = await inputs.count().catch(() => 0);
-  for (let i = 0; i < count; i += 1) {
-    const actual = await inputs.nth(i).inputValue().catch(() => '');
-    if (String(actual).trim() === value) return true;
-  }
-  return false;
+  // 单次 evaluate：行文本包含或输入框值全等（比例需精确匹配）即通过
+  return row.evaluate((el, target) => {
+    const text = el.innerText || el.textContent || '';
+    if (text.includes(target)) return true;
+    for (const input of Array.from(el.querySelectorAll('input, textarea'))) {
+      if (String(input.value || '').trim() === target) return true;
+    }
+    return false;
+  }, value).catch(() => false);
 }
 
 async function getRow(page, attribute) {
