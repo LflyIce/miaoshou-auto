@@ -21,8 +21,10 @@ const els = {
   fillBtn: document.querySelector('#fillBtn'),
   temuLoginBtn: document.querySelector('#temuLoginBtn'),
   temuBtn: document.querySelector('#temuBtn'),
+  temuRetailBtn: document.querySelector('#temuRetailBtn'),
   temuMultiplierInput: document.querySelector('#temuMultiplierInput'),
   temuPriceCheckUrlInput: document.querySelector('#temuPriceCheckUrlInput'),
+  temuRetailPriceUrlInput: document.querySelector('#temuRetailPriceUrlInput'),
   continueBtn: document.querySelector('#continueBtn'),
   stopBtn: document.querySelector('#stopBtn'),
   clearLogBtn: document.querySelector('#clearLogBtn'),
@@ -77,6 +79,7 @@ els.loginBtn.addEventListener('click', () => startTask('login'));
 els.fillBtn.addEventListener('click', () => startTask('fill'));
 els.temuLoginBtn.addEventListener('click', () => startTask('temu-login'));
 els.temuBtn.addEventListener('click', () => startTask('temu-price'));
+els.temuRetailBtn.addEventListener('click', () => startTask('temu-retail'));
 els.continueBtn.addEventListener('click', async () => {
   const result = await window.miaoshouApp.continueTask();
   if (!result.ok) appendLog(`${result.error}\n`, 'stderr');
@@ -171,6 +174,7 @@ async function init() {
   const temu = config.temu || {};
   els.temuMultiplierInput.value = Number(temu.multiplier) || 2;
   els.temuPriceCheckUrlInput.value = temu.priceCheckUrl || '';
+  els.temuRetailPriceUrlInput.value = temu.retailPriceUrl || '';
 
   const paths = data.paths || {};
   els.pathsText.textContent = [
@@ -264,7 +268,8 @@ async function saveSettings(options = {}) {
     headless: els.headlessInput.checked,
     sendImages: els.sendImagesInput.checked,
     temuMultiplier: Number(els.temuMultiplierInput.value || 2),
-    temuPriceCheckUrl: String(els.temuPriceCheckUrlInput.value || '').trim()
+    temuPriceCheckUrl: String(els.temuPriceCheckUrlInput.value || '').trim(),
+    temuRetailPriceUrl: String(els.temuRetailPriceUrlInput.value || '').trim()
   };
 
   const result = await window.miaoshouApp.saveSettings(settings);
@@ -280,7 +285,7 @@ async function saveSettings(options = {}) {
 function renderState() {
   els.statusDot.classList.toggle('running', state.running);
   els.statusDot.classList.toggle('idle', !state.running);
-  const labelMap = { 'login': '登录', 'fill': '填写', 'temu-login': '登录Temu', 'temu-price': 'Temu核价' };
+  const labelMap = { 'login': '登录', 'fill': '填写', 'temu-login': '登录Temu', 'temu-price': 'Temu核价', 'temu-retail': 'Temu零售价' };
   els.statusText.textContent = state.running
     ? `运行中：${labelMap[state.taskName] || state.taskName}`
     : '空闲';
@@ -290,6 +295,7 @@ function renderState() {
   els.fillBtn.disabled = state.taskName === 'fill';
   els.temuLoginBtn.disabled = state.taskName === 'temu-login';
   els.temuBtn.disabled = state.taskName === 'temu-price';
+  els.temuRetailBtn.disabled = state.taskName === 'temu-retail';
   els.stopBtn.disabled = !state.running;
   els.continueBtn.disabled = !state.running;
 }

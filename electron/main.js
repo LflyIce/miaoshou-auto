@@ -102,7 +102,8 @@ ipcMain.handle('app:save-settings', async (_event, settings) => {
     },
     temu: {
       multiplier: Number(settings.temuMultiplier || 2),
-      priceCheckUrl: String(settings.temuPriceCheckUrl || '').trim()
+      priceCheckUrl: String(settings.temuPriceCheckUrl || '').trim(),
+      retailPriceUrl: String(settings.temuRetailPriceUrl || '').trim()
     }
   });
 
@@ -123,7 +124,7 @@ ipcMain.handle('app:save-settings', async (_event, settings) => {
 });
 
 ipcMain.handle('task:start', async (_event, taskName) => {
-  if (!['login', 'fill', 'temu-login', 'temu-price'].includes(taskName)) {
+  if (!['login', 'fill', 'temu-login', 'temu-price', 'temu-retail'].includes(taskName)) {
     return { ok: false, error: `未知任务：${taskName}` };
   }
 
@@ -137,7 +138,8 @@ ipcMain.handle('task:start', async (_event, taskName) => {
     'login': ['src', 'login.js'],
     'fill': ['src', 'main.js'],
     'temu-login': ['src', 'temu', 'login_temu.js'],
-    'temu-price': ['src', 'temu', 'price_check.js']
+    'temu-price': ['src', 'temu', 'price_check.js'],
+    'temu-retail': ['src', 'temu', 'retail_price_fill.js']
   };
   const script = path.join(CODE_ROOT, ...scriptMap[taskName]);
   const task = fork(script, [], {
@@ -154,7 +156,7 @@ ipcMain.handle('task:start', async (_event, taskName) => {
 
   runningTask = task;
   send('task:state', { running: true, taskName });
-  const taskLabelMap = { 'login': '登录', 'fill': '开始填写', 'temu-login': '登录Temu', 'temu-price': 'Temu核价' };
+  const taskLabelMap = { 'login': '登录', 'fill': '开始填写', 'temu-login': '登录Temu', 'temu-price': 'Temu核价', 'temu-retail': 'Temu零售价' };
   send('task:log', { type: 'info', text: `启动任务：${taskLabelMap[taskName] || taskName}\n` });
 
   task.stdout.on('data', (chunk) => send('task:log', { type: 'stdout', text: chunk.toString() }));

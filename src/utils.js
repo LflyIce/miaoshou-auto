@@ -86,6 +86,7 @@ function loadConfig() {
     temu: {
       loginUrl: 'https://seller.kuajingmaihuo.com/settle/site-main',
       priceCheckUrl: '',
+      retailPriceUrl: '',
       multiplier: 2,
       diffThreshold: 10
     }

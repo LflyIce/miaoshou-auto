@@ -23,6 +23,7 @@ npm run dist                      # electron-builder → Windows NSIS installer 
                                   #   into dist/installer + dist/portable — bare `npm run dist` can stall on binary downloads
 node src/temu/login_temu.js       # Temu login → storage/temu_state.json (independent of the 妙手 session)
 node src/temu/price_check.js      # Temu 申报价格 list automation (see "Temu side-tooling" below)
+node src/temu/retail_price_fill.js # Temu 建议零售价 auto-fill (drawer table, paginated; see "Temu side-tooling" below)
 ```
 
 **No test framework, no linter.** Tests are plain Node scripts using `node:assert` + hand-written fakes. Run all:
@@ -96,11 +97,13 @@ The API key is **not** in `config.json` — that file only stores the env-var *n
 
 ## Temu side-tooling (`src/temu/`)
 
-`login_temu.js` / `price_check.js` automate the Temu 商家后台 申报价格 flow. Fully separate from the 妙手 pipeline: own login state (`storage/temu_state.json`, configured via `config.temu.loginUrl` / `config.temu.priceCheckUrl`), no shared loop or AI calls — only `src/utils.js` is reused. `price_check.js` specifics worth knowing before touching it:
+`login_temu.js` / `price_check.js` / `retail_price_fill.js` automate the Temu 商家后台 flows. Fully separate from the 妙手 pipeline: own login state (`storage/temu_state.json`, configured via `config.temu.loginUrl` / `config.temu.priceCheckUrl` / `config.temu.retailPriceUrl`), no shared loop or AI calls — only `src/utils.js` is reused. `price_check.js` specifics worth knowing before touching it:
 
 - The price list is a **virtual-scrolling** table — only visible rows are rendered, so it processes while scrolling and dedupes by SKC 编号.
 - Temu uses CSS-module classnames with hash suffixes (`TB_checkCell_5-120-1`), which cannot be prefix-matched — **locate exclusively via `data-testid`**.
 - Clicking 查看并确认申报价格 opens a right drawer (`bgb-pc-show-drawer-body`) holding one SKC's SKU rows; the SKC-level 操作 dropdown (default 申请调整更新申报价格) is where 放弃调整申报价格 lives. Decisions use the group's first SKU 原价/调整后价; range prices take the lower bound.
+
+`retail_price_fill.js` (GUI button 「Temu零售价」, task `temu-retail`) fills the 建议零售价 column in a user-opened right-side drawer on the page configured at `temu.retailPriceUrl`: per SKU row it copies the lower bound of 日常价格范围 (the td two before the input td — the first td back is 同款品市场价参考) into `input[data-testid="beast-core-inputNumber-htmlInput"]`, blurs and read-back verifies (keyboard-typing fallback), then checks the row checkbox (`label[data-testid="beast-core-checkbox"]`, verified via `data-checked="true"`; nativeClick fallback when occluded). Per page: fill+check all rows → nativeClick 提交已选(N项) → a confirm modal always appears (`beast-core-modal-body`, rendered in a body-level portal outside the drawer scope — located via bodyScope; its 确认 button clicked by exact text) → wait for success signal (成功 toast text or the button count resetting to 0; unrecognized results pause for manual confirmation instead of advancing) → rescan current page (submitted rows may vanish from the list) → click `li[data-testid="beast-core-pagination-next"]` (icon-only, disabled = class contains `PGT_disabled`; active page read via `li[class*="pagerItemActive"]`) and repeat until the last page. The input table is located by polling all context tabs + iframes (`findInputTarget`) — it is not assumed to be in the initial tab or frame, and detection failure retries via `waitForEnter` rather than exiting.
 
 ## Adding things — the extension points
 

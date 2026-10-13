@@ -117,6 +117,7 @@
   "temu": {
     "loginUrl": "https://seller.kuajingmaihuo.com/settle/site-main",
     "priceCheckUrl": "https://agentseller.temu.com/newon/product-select",
+    "retailPriceUrl": "https://agentseller.temu.com/goods/list",
     "multiplier": 5,
     "diffThreshold": 10
   }
