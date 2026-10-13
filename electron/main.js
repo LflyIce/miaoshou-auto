@@ -38,7 +38,12 @@ function createWindow() {
     }
   });
 
-  mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  const isDev = process.env.ELECTRON_IS_DEV === '1';
+  if (isDev) {
+    mainWindow.loadURL('http://localhost:5173');
+  } else {
+    mainWindow.loadFile(path.join(__dirname, 'renderer', 'dist', 'index.html'));
+  }
 }
 
 app.whenReady().then(async () => {

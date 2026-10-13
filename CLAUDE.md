@@ -14,10 +14,12 @@ All code comments, log prefixes (`[扫描]`, `[保存]`, `[下一商品]`…), c
 npm install                       # deps (set ELECTRON_MIRROR for China mirror if slow)
 npx playwright install chromium   # only needed if not using local Edge (default uses msedge)
 
+npm run dev                       # 开发模式：concurrently 启动 Vite dev server + Electron（热更新）
 npm run login                     # node src/login.js — manual login, saves storage/miaoshou_state.json
 npm run fill                      # node src/main.js — the batch fill loop
-npm run app                       # electron . — desktop GUI
-npm run dist                      # electron-builder → Windows NSIS installer in dist/
+npm run app                       # electron . — desktop GUI（生产模式，加载构建产物）
+npm run build:renderer            # vite build — 构建渲染层到 electron/renderer/dist/
+npm run dist                      # npm run build:renderer && electron-builder → Windows NSIS installer
 .\scripts\build.ps1               # preferred packaging wrapper: sets China mirrors (ELECTRON_MIRROR,
                                   #   ELECTRON_BUILDER_BINARIES_MIRROR), disables code signing, sorts output
                                   #   into dist/installer + dist/portable — bare `npm run dist` can stall on binary downloads
@@ -40,7 +42,8 @@ Run a single test: `node test/save_feedback.test.js`.
 Syntax check (the "lint" substitute — run after touching Electron files):
 
 ```powershell
-node -c electron\main.js; node -c electron\preload.js; node -c electron\renderer\app.js; node -c src\utils.js
+node -c electron\main.js; node -c electron\preload.js; node -c src\utils.js
+# 渲染层是 React/JSX，用 Vite 构建验证：npx vite build --config electron\renderer\vite.config.mjs
 ```
 
 ## Architecture
@@ -48,11 +51,21 @@ node -c electron\main.js; node -c electron\preload.js; node -c electron\renderer
 Layered, with a clean core/UI split:
 
 ```
-Electron renderer (renderer/app.js)  ←→  window.miaoshouApp (contextBridge IPC)
-Electron main (electron/main.js)     ←→  child_process.fork(src/login.js | src/main.js) + stdin('\n')
-automation core (src/*.js)           ←→  Playwright → local Edge → 妙手 ERP page
-                                     ←→  Zhipu GLM via Anthropic Messages API
+Electron renderer (React + Ant Design)
+  src/main.jsx → App.jsx → components/*.jsx + hooks/*.js
+  ←→ window.miaoshouApp (contextBridge IPC, preload.js 暴露)
+Electron main (electron/main.js)
+  ←→ child_process.fork(src/login.js | src/main.js) + stdin('\n')
+automation core (src/*.js)
+  ←→ Playwright → local Edge → 妙手 ERP page
+  ←→ Zhipu GLM via Anthropic Messages API
 ```
+
+**渲染层技术栈**：React 18 + Ant Design 5 + Vite 8。源码在 `electron/renderer/src/`，入口 `main.jsx`，组件化拆分（`components/` 目录），业务逻辑用 hooks 封装（`hooks/` 目录）。主题定制在 `theme.js`（绿色主色 #10b981），全局补充样式在 `global.css`。
+
+**构建与加载**：开发模式 `npm run dev` 启动 Vite dev server（localhost:5173），Electron 通过 `loadURL` 连接；生产模式 `npm run build:renderer` 输出到 `electron/renderer/dist/`，Electron 通过 `loadFile` 加载。`electron/main.js` 用 `ELECTRON_IS_DEV` 环境变量区分两种模式。
+
+**IPC 桥稳定**：`electron/preload.js` 暴露的 `window.miaoshouApp` 接口（12 个 invoke + 3 个事件）是框架无关的——React hooks 直接调用，无需修改主进程。
 
 **The core never knows Electron exists.** The desktop app launches `src/main.js` as a forked child process and bridges its terminal `waitForEnter()` prompt into a UI "继续/Continue" button by writing `'\n'` to the child's stdin (`electron/main.js` → `task:continue`). When editing the interactive flow, both sides must stay in sync.
 
@@ -109,7 +122,9 @@ The API key is **not** in `config.json` — that file only stores the env-var *n
 
 - **New control type**: (1) detect in `attribute_scanner.js` `detectControlType`, (2) add a `fillAttribute` branch in `filler.js` with read-back verification, (3) add a final-decision branch in `main.js` `decideFinalValue`, (4) add a knowledge-reuse branch in `main.js` `decideFromKnowledge`.
 - **New AI capability**: add a function in `ai_analyzer.js` using `createAIClient()` then `client.completeWithFallback(...)` + `extractJSON`; put prompts in `prompt_templates.json`. For a new provider, add an entry in `config.json` `ai.providers` with `label` + `baseURL` + `apiKeyEnv` (no `apiType` needed — everything is Anthropic-format now).
-- **New UI config option**: add the control in `renderer/index.html`, wire it in `renderer/app.js` (`els`/`init`/`saveSettings`), and deep-merge it in `electron/main.js` `app:save-settings`. Keys not added to the save handler won't persist.
+- **New UI config option**: add the control in `SettingsView.jsx` (components/SettingsView.jsx), wire it into the antd Form, and deep-merge it in `electron/main.js` `app:save-settings`. Keys not added to the save handler won't persist.
+
+**New renderer component**: create in `electron/renderer/src/components/`, import into `App.jsx`, and wire any needed IPC via `window.miaoshouApp` (already exposed in preload.js). Shared state goes in `electron/renderer/src/hooks/`.
 - **Broken page selectors** (妙手 DOM changed): extend `modules.attributes.aliases` in config, or the selector lists / scoring in `attribute_scanner.js`. All dropdown primitives — `OPTION_SELECTORS` (jx/el/ant option-node selectors), `openSelect`/`closeDropdown`/`closeDropdownByOutsideClick`/`clickOption`/`clickFirstVisibleOption`/`typeSearchValue`/`verifyRowContains`/`collectVisibleOptions`, and the event-wait `waitForDropdownVisible` — live in **`src/ui.js`**, the single source of truth shared by `attribute_scanner.js`, `filler.js`, and `sku_filler.js`. The 妙手 page mixes `jx-*` (its own), `el-*`, and `ant-*` components, so selector lists carry all three prefixes — keep that. Beware two `jx` quirks: multi-select **rolls back uncommitted picks on Escape** (`ui.closeDropdownByOutsideClick` closes by clicking the pane label and re-picks missing values), and the 更多属性 expand button is a toggle (`is-collapse` state must be checked before clicking, or you re-collapse it).
 
 ## Output artifacts (gitignored)

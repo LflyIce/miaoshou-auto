@@ -1,6 +1,7 @@
 node_modules/
 .npm-cache/
 .env
+electron/renderer/dist/
 config/auth.json
 data/*.xlsx
 data/screenshots/*.png

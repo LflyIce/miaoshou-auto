@@ -6,8 +6,11 @@
   "scripts": {
     "login": "node src/login.js",
     "fill": "node src/main.js",
+    "dev": "concurrently -k -n VITE,ELECTRON -c blue,green \"vite --config electron/renderer/vite.config.mjs\" \"cross-env ELECTRON_IS_DEV=1 electron .\"",
+    "dev:vite": "vite --config electron/renderer/vite.config.mjs",
+    "build:renderer": "vite build --config electron/renderer/vite.config.mjs",
     "app": "electron .",
-    "dist": "electron-builder"
+    "dist": "npm run build:renderer && electron-builder"
   },
   "keywords": [
     "miaoshou",
@@ -19,14 +22,23 @@
   "author": "玖月",
   "license": "MIT",
   "dependencies": {
+    "@ant-design/icons": "^6.3.4",
+    "antd": "^6.6.6",
+    "dayjs": "^1.11.23",
     "dotenv": "^16.4.7",
     "exceljs": "^4.4.0",
     "openai": "^4.76.0",
-    "playwright": "^1.49.1"
+    "playwright": "^1.49.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
   },
   "devDependencies": {
+    "@vitejs/plugin-react": "^6.1.2",
+    "concurrently": "^10.0.6",
+    "cross-env": "^10.1.0",
     "electron": "^31.7.7",
-    "electron-builder": "^24.13.3"
+    "electron-builder": "^24.13.3",
+    "vite": "^8.3.4"
   },
   "build": {
     "appId": "com.local.miaoshou-attribute-helper",
@@ -35,6 +47,11 @@
     "asar": false,
     "files": [
       "electron/**/*",
+      "!electron/renderer/src/**",
+      "!electron/renderer/vite.config.mjs",
+      "!electron/renderer/node_modules/**",
+      "!electron/renderer/style.css",
+      "!electron/renderer/app.js",
       "src/**/*",
       "config/**/*",
       "!config/auth.json",
