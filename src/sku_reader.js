@@ -18,13 +18,25 @@ async function readSkuTableData(page) {
       }
 
       if (!declaredPrice) {
-        const priceInputs = row.querySelectorAll('.cell-container .el-input__inner');
-        for (const input of priceInputs) {
-          const container = input.closest('.cell-container');
-          if (!container) continue;
-          const currency = container.querySelector('.price-currency');
-          if (currency) {
-            declaredPrice = (input.value || '').trim();
+        // 申报价单元格定位：带货币符号/价格类名的单元格，兼容 el/jx 两套组件的输入框
+        const cells = row.querySelectorAll('.jx-pro-virtual-table__row-cell, .cell-container');
+        for (const cell of cells) {
+          const cls = `${cell.className || ''}`;
+          const text = cell.textContent || '';
+          const isPriceCell = Boolean(cell.querySelector('.price-currency'))
+            || /price|currency|申报/i.test(cls)
+            || /[¥￥]/.test(text);
+          if (!isPriceCell) continue;
+          const input = cell.querySelector('input');
+          const v = input ? (input.value || '').trim() : '';
+          if (/^\d+(?:\.\d+)?$/.test(v)) {
+            declaredPrice = v;
+            break;
+          }
+          // 只读展示时从单元格文本提取数字
+          const m = text.replace(/,/g, '').match(/\d+(?:\.\d+)?/);
+          if (m) {
+            declaredPrice = m[0];
             break;
           }
         }

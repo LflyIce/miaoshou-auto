@@ -105,7 +105,9 @@ function createAIClient(modelOverride) {
   const maxTokens = Number(config.ai.maxTokens) || 4096;
   const apiType = provider.apiType || 'anthropic';
   const timeoutMs = Number(config.ai.timeoutMs) || 0;
-  return new AnthropicClient({ baseURL, apiKey, model, maxTokens, apiType, ...(timeoutMs > 0 ? { timeoutMs } : {}) });
+  // ai.thinking 显式为 true 才开启思考链，默认关闭以提速
+  const enableThinking = config.ai.thinking === true;
+  return new AnthropicClient({ baseURL, apiKey, model, maxTokens, apiType, enableThinking, ...(timeoutMs > 0 ? { timeoutMs } : {}) });
 }
 
 /**
@@ -330,7 +332,7 @@ async function rewriteProductTitles(productInfo, retryCount = 0) {
     sourceTitle: productInfo.title || '',
     task: '分析产品标题，提取核心关键词，结合日本电商搜索热词进行扩写，同时完成违禁词扫描与合规校验，最终生成符合日本电商SEO的日文标题和英文标题',
     outputFormat: {
-      japaneseTitle: '150到175字符的纯日文字符串，无标点无空格无换行',
+      japaneseTitle: '不超过175字符的纯日文字符串，无标点无空格无换行；素材不足时自然收尾（不足150也没关系），严禁凑字数',
       englishTitle: '对应的跨境电商英文标题'
     }
   };
@@ -354,8 +356,15 @@ async function rewriteProductTitles(productInfo, retryCount = 0) {
     }
     titles.japaneseTitle = jpClean.title;
 
-    if (titles.japaneseTitle.length < 150) {
-      console.warn(`[标题] 日文标题 ${titles.japaneseTitle.length} 字符，不足 150`);
+    // 质量校验：AI 把报错文字/重复填充/乱码当标题输出的情况一律拒绝重试，
+    // 宁可标题短一点或本商品不填标题，也不能把垃圾文字填进 ERP
+    const suspicious = isSuspiciousJapaneseTitle(titles.japaneseTitle);
+    if (suspicious) {
+      throw new Error(`日文标题疑似异常输出(${suspicious}): ${titles.japaneseTitle.slice(0, 40)}...`);
+    }
+
+    if (titles.japaneseTitle.length < 120) {
+      console.warn(`[标题] 日文标题 ${titles.japaneseTitle.length} 字符，不足 120（不再强制凑 150，避免模型填充垃圾词）`);
     } else {
       console.log(`[标题] 标题生成完成: ${titles.japaneseTitle.length} 字符`);
     }
@@ -386,8 +395,36 @@ function normalizeTitles(parsed) {
     console.warn(`[标题] 英文标题包含日文字符，已丢弃: ${englishTitle.slice(0, 40)}...`);
     englishTitle = '';
   }
+  // 安全校验：英文标题是 AI 的报错/说明文字（如 "Error No valid product title..."），丢弃
+  if (englishTitle && (/^(error|invalid|no valid|sorry|i cannot|unable)/i.test(englishTitle) || /sourceTitle|provide (a )?(valid|product)/i.test(englishTitle))) {
+    console.warn(`[标题] 英文标题疑似 AI 报错文字，已丢弃: ${englishTitle.slice(0, 40)}...`);
+    englishTitle = '';
+  }
 
   return { japaneseTitle, englishTitle };
+}
+
+/**
+ * 检测日文标题是否为 AI 异常输出。返回命中的异常类型字符串，干净标题返回 ''。
+ * 覆盖三类真实事故（2026-10-14）：报错文字直填、凑字数重复堆词、乱码/无意义拉丁串。
+ */
+function isSuspiciousJapaneseTitle(title) {
+  if (!title) return '';
+  if (/エラー|無効|入力された|確認できません|できませんでした|不適切|適化不可/.test(title)) {
+    return '报错文字';
+  }
+  if (/[A-Za-z]{6,}/.test(title)) return '可疑拉丁串';
+  if (/(UUID|API|JSON|Token|Error)/i.test(title)) return '技术词';
+  if (/[A-Za-z]+\d{3,}/.test(title)) return '乱码后缀';
+  // 重复填充：≥10 字符片段出现 2 次，或 3-9 字符片段出现 ≥4 次（あったか 等正常复现 ≤3 次不受影响）
+  for (let len = 3; len <= Math.min(12, Math.floor(title.length / 2)); len++) {
+    const min = len >= 10 ? 2 : 4;
+    for (let i = 0; i + len * min <= title.length; i++) {
+      const seg = title.slice(i, i + len);
+      if (title.split(seg).length - 1 >= min) return `重复填充(${seg.slice(0, 8)})`;
+    }
+  }
+  return '';
 }
 
 function sanitizeJapaneseTitle(title) {
@@ -395,8 +432,8 @@ function sanitizeJapaneseTitle(title) {
     .replace(/[!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~\s]/g, "")
     .replace(/[「」『』""''，。！？、；：￥（）【】《》—…·\s]/g, "");
   const chars = Array.from(cleaned);
-  if (chars.length < 150) {
-    console.warn("[标题] 日文标题仅 " + chars.length + " 字符，不足 150");
+  if (chars.length < 120) {
+    console.warn("[标题] 日文标题仅 " + chars.length + " 字符，不足 120");
   }
   return chars.slice(0, 175).join("");
 }
@@ -461,7 +498,7 @@ async function analyzeSaveError(errorMessage, productInfo) {
     productCategory: productInfo.categoryName || ''
   };
 
-  const userText = `商品保存时遇到以下错误，请分析错误信息，指出哪些字段有问题，并建议修正值。\n\n错误信息：${errorMessage}\n产品原标题：${productInfo.title || ''}\n产品类别：${productInfo.categoryName || ''}\n\n注意：\n- 产品标题（产品标题/商品标题）必须是纯日文（150-175字符，无标点无空格）\n- 英文标题必须是纯英文（ASCII字符），不能包含日文、中文或其他非英文字符\n- 如果错误提到"英文标题含有其他语言"，说明英文标题字段混入了日文/中文，需要翻译为纯英文\n- 如果错误提到"产品标题"相关问题，检查是否满足150-175字符要求\n\n只返回JSON，格式: { "corrections": [{ "fieldName": "字段名（如：英文标题、产品标题）", "suggestedValue": "修正后的值", "reason": "修正理由" }] }`;
+  const userText = `商品保存时遇到以下错误，请分析错误信息，指出哪些字段有问题，并建议修正值。\n\n错误信息：${errorMessage}\n产品原标题：${productInfo.title || ''}\n产品类别：${productInfo.categoryName || ''}\n\n注意：\n- 产品标题（产品标题/商品标题）必须是纯日文（175字符以内，无标点无空格；低于150不是错误，严禁凑字）\n- 英文标题必须是纯英文（ASCII字符），不能包含日文、中文或其他非英文字符\n- 如果错误提到"英文标题含有其他语言"，说明英文标题字段混入了日文/中文，需要翻译为纯英文\n- 如果错误提到"产品标题"相关问题，检查是否超过175字符或含标点，不要为了凑长度添加无意义内容\n\n只返回JSON，格式: { "corrections": [{ "fieldName": "字段名（如：英文标题、产品标题）", "suggestedValue": "修正后的值", "reason": "修正理由" }] }`;
 
   try {
     const content = await client.completeText({
@@ -501,12 +538,12 @@ function defaultTitleRewritePrompt() {
     '执行流程：',
     '步骤1：分析输入的产品原始标题，提取核心关键词、属性词、用途及适用人群。',
     '步骤2：结合日本电商搜索热词，对标题进行扩写。按关键词权重排序（核心词前置，长尾词后置），调整语序以符合日本搜索习惯。',
-    '步骤3：严格控制字符数，将扩写后的日文标题删减或补充至150-175字符区间，并移除所有标点符号和空格。',
+    '步骤3：扩写后的日文标题上限175字符，超出必须删减，并移除所有标点符号和空格。素材不足时自然收尾，没有达到150也没关系，严禁凑字数。',
     '步骤4：将优化好的日文标题翻译成地道、符合跨境电商通用的英文标题。',
     '步骤5：按JSON格式输出最终结果。',
     '',
     '硬性要求：',
-    '- japaneseTitle必须是150到175个字符的纯字符串，严禁任何标点符号和空格',
+    '- japaneseTitle必须是175字符以内的纯字符串（低于150完全允许），严禁任何标点符号和空格，严禁重复堆词或无意义词汇凑长度',
     '- 如果源标题是日语先翻译成中文理解再扩写',
     '- 不包含换行符emoji品牌名或虚假宣传',
     '- 只返回严格JSON，包含japaneseTitle、englishTitle两个字段'
@@ -523,5 +560,6 @@ module.exports = {
   extractJSON,
   createAIClient,
   createFastAIClient,
-  sanitizeTitleCompliance
+  sanitizeTitleCompliance,
+  isSuspiciousJapaneseTitle
 };

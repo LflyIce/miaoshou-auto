@@ -112,7 +112,22 @@ async function readImages(page) {
 
 async function readProductLink(page) {
   return page.evaluate(() => {
-    // 优先从右侧商品列表的 active 项读取产品链接
+    // 优先从商品列表 active 项读取 1688 源链接（.goods-info 内 .source-link，href 如 detail.1688.com/offer/xxx.html）
+    const sourceSelectors = [
+      '.goods-item.is-active .source-link',
+      '.goods-item.active .source-link',
+      '.goods-item.selected .source-link',
+      '.goods-item.current .source-link',
+      '.list-goods-item.is-active .source-link',
+      '.list-goods-item.active .source-link',
+      '.list-goods-item.selected .source-link'
+    ];
+    for (const selector of sourceSelectors) {
+      const link = document.querySelector(selector);
+      if (link && /^https?:/i.test(link.href || '')) return link.href;
+    }
+
+    // 旧版结构：从商品列表的 active 项读取产品链接
     const activeSelectors = [
       '.goods-item.active .goods-other-info a',
       '.goods-item.selected .goods-other-info a',

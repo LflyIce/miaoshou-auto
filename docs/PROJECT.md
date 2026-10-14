@@ -400,7 +400,7 @@ confidence = min(0.96, 0.78 + min(出现次数, 6) × 0.03)
 ### 模型与接口
 
 - 接口：智谱 BigModel（OpenAI 兼容），`config.ai.baseURL`
-- 模型：`config.ai.model`（实际配置 `glm-5.1`）
+- 模型：`config.ai.model`（实际配置 `glm-5.3-flash`）
 - 密钥：`process.env[config.ai.apiKeyEnv]`（默认 `ZAI_API_KEY`，来自 `.env`）
 - 图片：`config.ai.sendImages` 控制是否把商品主图发给视觉模型（关闭则纯文本）
 
@@ -472,7 +472,7 @@ confidence = min(0.96, 0.78 + min(出现次数, 6) × 0.03)
 | `browser.executablePath` | 空 | 指定浏览器可执行文件路径（优先于 channel） |
 | `browser.viewport` | 1920×1080 | 窗口尺寸 |
 | `ai.baseURL` | 智谱 v4 | OpenAI 兼容接口地址 |
-| `ai.model` | `glm-5.1` | 模型名 |
+| `ai.model` | `glm-5.3-flash` | 模型名 |
 | `ai.apiKeyEnv` | `ZAI_API_KEY` | 从哪个环境变量读密钥 |
 | `ai.sendImages` | false | 是否发商品图给视觉模型 |
 | `thresholds.autoSelectScore` | 0.85 | 模糊匹配自动采用阈值 |

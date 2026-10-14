@@ -1,5 +1,5 @@
 {
-  "version": "1.0.1",
-  "url": "https://miaoshou-1308104144.cos.ap-guangzhou.myqcloud.com/妙手属性助手-Setup-1.0.1.exe",
-  "notes": "1. 新增自动升级检查;\n2. 版本上传"
+    "version":  "2.0.0",
+    "url":  "https://miaoshou-1308104144.cos.ap-guangzhou.myqcloud.com/妙手属性助手 Setup 2.0.0.exe",
+    "notes":  "1. 全新界面：分区布局与两步式登录；2. 修复标题生成凑字与乱码问题；3. 修复设置保存覆盖配置与密钥丢失；4. 修复自动翻页；5. 修复导出产品地址与采购成本"
 }

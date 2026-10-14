@@ -42,7 +42,7 @@ function loadConfig() {
     headless: false,
     ai: {
       baseURL: 'https://open.bigmodel.cn/api/paas/v4',
-      model: 'glm-5.1',
+      model: 'glm-5.3-flash',
       apiKeyEnv: 'ZAI_API_KEY',
       sendImages: true,
       maxTokens: 8192

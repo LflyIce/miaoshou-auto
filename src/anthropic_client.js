@@ -18,7 +18,7 @@
  *   const client = new AnthropicClient({
  *     baseURL: 'https://open.bigmodel.cn/api/paas/v4',
  *     apiKey: process.env.ZAI_API_KEY,
- *     model: 'glm-5.1',
+ *     model: 'glm-5.3-flash',
  *     apiType: 'openai'
  *   });
  *
@@ -63,6 +63,8 @@ class AnthropicClient {
     this.apiVersion = options.apiVersion || ANTHROPIC_VERSION;
     // 'anthropic' | 'openai'，默认 anthropic
     this.apiType = options.apiType === 'openai' ? 'openai' : 'anthropic';
+    // 思考链开关：默认关闭（标题/属性类任务无需深度推理，开启会显著拖慢并吃掉输出预算）
+    this.enableThinking = options.enableThinking === true;
   }
 
   /**
@@ -170,6 +172,8 @@ class AnthropicClient {
       temperature: temp
     };
     if (system) body.system = system;
+    // 默认禁用思考链：实测同一请求 10.5s → 2.3s，且避免思考吃光 max_tokens 导致空输出
+    if (!this.enableThinking) body.thinking = { type: 'disabled' };
     return body;
   }
 

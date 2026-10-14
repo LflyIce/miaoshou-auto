@@ -75,6 +75,8 @@ ipcMain.handle('app:load-settings', async () => {
   return {
     config,
     apiKey: env[apiKeyEnv] || '',
+    // 全部 env 值：切换模型时前端据此回填对应环境变量的已有 key
+    apiKeys: env,
     apiKeyEnv,
     version: app.getVersion(),
     paths: {
@@ -95,7 +97,7 @@ ipcMain.handle('app:save-settings', async (_event, settings) => {
     headless: Boolean(settings.headless),
     productEditUrl: String(settings.productEditUrl || '').trim(),
     ai: {
-      model: String(settings.model || config.ai && config.ai.model || 'glm-5.1').trim(),
+      model: String(settings.model || config.ai && config.ai.model || 'glm-5.3-flash').trim(),
       sendImages: Boolean(settings.sendImages)
     },
     behavior: {
@@ -121,9 +123,13 @@ ipcMain.handle('app:save-settings', async (_event, settings) => {
   const provider = providers[modelName] || null;
   const targetEnvVar = (provider && provider.apiKeyEnv) || 'ZAI_API_KEY';
 
-  const env = await readEnv(ENV_PATH);
-  env[targetEnvVar] = String(settings.apiKey || '').trim();
-  await writeEnv(ENV_PATH, env);
+  // 仅在填写了新 key 时写入；空输入框不覆盖已有密钥（切换模型后 key 框常为空）
+  const newApiKey = String(settings.apiKey || '').trim();
+  if (newApiKey) {
+    const env = await readEnv(ENV_PATH);
+    env[targetEnvVar] = newApiKey;
+    await writeEnv(ENV_PATH, env);
+  }
 
   return { ok: true };
 });

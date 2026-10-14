@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-13T08:40:53.500Z",
+  "updatedAt": "2026-10-14T06:24:16.629Z",
   "categories": {
     "办公用品日常办公用品商务公文包及电脑包笔记本电脑包手提、单肩电脑包": {
       "categoryName": "办公用品 / 日常办公用品 / 商务公文包及电脑包 / 笔记本电脑包 / 手提、单肩电脑包",
@@ -4734,14 +4734,14 @@
       "categoryName": "服装、鞋靴和珠宝饰品 / 男士时尚 / 男装配饰 / 男士帽子 / 男士头巾",
       "key": "服装、鞋靴和珠宝饰品男士时尚男装配饰男士帽子男士头巾",
       "firstSeenAt": "2026-09-16T08:03:18.992Z",
-      "lastSeenAt": "2026-10-13T05:22:11.338Z",
-      "timesSeen": 117,
+      "lastSeenAt": "2026-10-13T09:48:03.017Z",
+      "timesSeen": 119,
       "sampleTitles": [
+        "2025新款可爱小浣熊耳朵雷锋帽女秋冬保暖护耳加厚毛绒防寒帽子in",
+        "毛绒狐狸耳朵帽子围巾一体女秋冬加厚保暖防寒显脸小雷锋帽",
         "复古小花红色巴拉克拉法帽女冬季针织毛线帽保暖显脸小护耳帽子",
         "红色巴拉克拉法帽女秋冬季保暖毛线帽子围巾一体连帽围脖针织帽冬",
-        "日系复古棕色格子贝雷帽秋冬大头帽子八角帽报童画家",
-        "复古麂皮绒八角帽女秋冬显脸小英伦风前进报童帽百搭鸭舌画家帽子",
-        "会动耳朵毛绒帽子女秋冬保暖加厚可爱小羊雷锋帽韩系显脸小护耳帽"
+        "日系复古棕色格子贝雷帽秋冬大头帽子八角帽报童画家"
       ],
       "attributes": [
         {
@@ -4857,8 +4857,8 @@
             }
           },
           "firstSeenAt": "2026-09-16T08:03:18.992Z",
-          "lastSeenAt": "2026-10-13T05:22:06.704Z",
-          "timesSeen": 113
+          "lastSeenAt": "2026-10-13T09:47:55.670Z",
+          "timesSeen": 115
         },
         {
           "name": "风格",
@@ -4899,14 +4899,14 @@
           "values": {
             "休闲": {
               "value": "休闲",
-              "count": 28,
-              "lastUsedAt": "2026-10-13T05:14:01.042Z",
-              "sampleTitle": "红色巴拉克拉法帽女秋冬季保暖毛线帽子围巾一体连帽围脖针织帽冬"
+              "count": 29,
+              "lastUsedAt": "2026-10-13T09:04:07.711Z",
+              "sampleTitle": "毛绒狐狸耳朵帽子围巾一体女秋冬加厚保暖防寒显脸小雷锋帽"
             }
           },
           "firstSeenAt": "2026-09-16T08:03:18.992Z",
-          "lastSeenAt": "2026-10-13T05:22:06.704Z",
-          "timesSeen": 107
+          "lastSeenAt": "2026-10-13T09:47:55.670Z",
+          "timesSeen": 109
         },
         {
           "name": "里衬成分",
@@ -4981,9 +4981,9 @@
           "values": {
             "无里料无内衬": {
               "value": "无里料/无内衬",
-              "count": 53,
-              "lastUsedAt": "2026-10-13T05:22:11.338Z",
-              "sampleTitle": "复古小花红色巴拉克拉法帽女冬季针织毛线帽保暖显脸小护耳帽子"
+              "count": 55,
+              "lastUsedAt": "2026-10-13T09:48:03.017Z",
+              "sampleTitle": "2025新款可爱小浣熊耳朵雷锋帽女秋冬保暖护耳加厚毛绒防寒帽子in"
             },
             "绒面pu": {
               "value": "绒面/PU",
@@ -4993,8 +4993,8 @@
             }
           },
           "firstSeenAt": "2026-09-16T08:03:18.992Z",
-          "lastSeenAt": "2026-10-13T05:22:11.338Z",
-          "timesSeen": 83
+          "lastSeenAt": "2026-10-13T09:48:03.017Z",
+          "timesSeen": 85
         },
         {
           "name": "面料克重1（g/m²)",
@@ -5030,14 +5030,14 @@
             },
             "绒面pu": {
               "value": "绒面/PU",
-              "count": 34,
-              "lastUsedAt": "2026-10-13T05:22:08.893Z",
-              "sampleTitle": "复古小花红色巴拉克拉法帽女冬季针织毛线帽保暖显脸小护耳帽子"
+              "count": 36,
+              "lastUsedAt": "2026-10-13T09:48:00.467Z",
+              "sampleTitle": "2025新款可爱小浣熊耳朵雷锋帽女秋冬保暖护耳加厚毛绒防寒帽子in"
             }
           },
           "firstSeenAt": "2026-09-16T08:03:18.992Z",
-          "lastSeenAt": "2026-10-13T05:22:08.893Z",
-          "timesSeen": 81
+          "lastSeenAt": "2026-10-13T09:48:00.467Z",
+          "timesSeen": 83
         },
         {
           "name": "织造方式",
@@ -5061,14 +5061,14 @@
           "values": {
             "针织": {
               "value": "针织",
-              "count": 47,
-              "lastUsedAt": "2026-10-13T05:14:03.538Z",
-              "sampleTitle": "红色巴拉克拉法帽女秋冬季保暖毛线帽子围巾一体连帽围脖针织帽冬"
+              "count": 49,
+              "lastUsedAt": "2026-10-13T09:47:57.947Z",
+              "sampleTitle": "2025新款可爱小浣熊耳朵雷锋帽女秋冬保暖护耳加厚毛绒防寒帽子in"
             }
           },
           "firstSeenAt": "2026-09-16T08:03:18.992Z",
-          "lastSeenAt": "2026-10-13T05:22:06.704Z",
-          "timesSeen": 99
+          "lastSeenAt": "2026-10-13T09:47:57.947Z",
+          "timesSeen": 101
         }
       ]
     },
@@ -9777,11 +9777,14 @@
       "categoryName": "服装、鞋靴和珠宝饰品 / 体育专用服装 / 篮球服 / 女士篮球服 / 袜子",
       "key": "服装、鞋靴和珠宝饰品体育专用服装篮球服女士篮球服袜子",
       "firstSeenAt": "2026-10-13T04:00:56.573Z",
-      "lastSeenAt": "2026-10-13T08:39:14.636Z",
-      "timesSeen": 3,
+      "lastSeenAt": "2026-10-14T06:24:08.553Z",
+      "timesSeen": 160,
       "sampleTitles": [
-        "荷叶边女袜日系秋冬双针竖条棉质中筒袜纯色木耳花边短筒女士袜子",
-        "长筒袜套女秋冬羊毛加厚保暖日系拼色堆堆袜套针织袜子护腿套脚套"
+        "秋冬珊瑚绒卡通刺绣立体金丝猫睡眠袜子中筒袜加绒加厚保暖地板袜",
+        "珊瑚绒不掉毛睡眠袜子中筒袜加绒加厚保暖家居地板秋冬袜子",
+        "秋冬袜子简约笑脸刺绣珊瑚绒半边绒睡眠袜地毯袜加绒加厚保暖袜",
+        "诸暨袜子女 珊瑚绒小猫刺绣系列女袜立体秋冬半边绒加厚保暖暖绒",
+        "不掉毛珊瑚绒秋冬提耳点胶瑜伽袜睡眠袜船袜女防滑"
       ],
       "attributes": [
         {
@@ -9855,8 +9858,8 @@
             }
           },
           "firstSeenAt": "2026-10-13T04:00:56.573Z",
-          "lastSeenAt": "2026-10-13T08:39:09.686Z",
-          "timesSeen": 3
+          "lastSeenAt": "2026-10-14T06:24:08.553Z",
+          "timesSeen": 160
         },
         {
           "name": "成分",
@@ -9899,8 +9902,8 @@
             }
           },
           "firstSeenAt": "2026-10-13T04:00:56.573Z",
-          "lastSeenAt": "2026-10-13T08:39:04.661Z",
-          "timesSeen": 3
+          "lastSeenAt": "2026-10-14T06:24:08.553Z",
+          "timesSeen": 160
         },
         {
           "name": "护理说明",
@@ -9930,8 +9933,8 @@
             }
           },
           "firstSeenAt": "2026-10-13T04:00:56.573Z",
-          "lastSeenAt": "2026-10-13T08:39:01.511Z",
-          "timesSeen": 3
+          "lastSeenAt": "2026-10-14T06:24:08.553Z",
+          "timesSeen": 160
         },
         {
           "name": "季节",
@@ -9956,8 +9959,8 @@
             }
           },
           "firstSeenAt": "2026-10-13T04:00:56.573Z",
-          "lastSeenAt": "2026-10-13T08:39:12.176Z",
-          "timesSeen": 3
+          "lastSeenAt": "2026-10-14T06:24:08.553Z",
+          "timesSeen": 160
         },
         {
           "name": "面料纹理1",
@@ -9976,8 +9979,8 @@
             }
           },
           "firstSeenAt": "2026-10-13T04:00:56.573Z",
-          "lastSeenAt": "2026-10-13T08:39:14.636Z",
-          "timesSeen": 3
+          "lastSeenAt": "2026-10-14T06:24:08.553Z",
+          "timesSeen": 160
         },
         {
           "name": "图案",
@@ -10014,8 +10017,8 @@
             }
           },
           "firstSeenAt": "2026-10-13T04:00:56.573Z",
-          "lastSeenAt": "2026-10-13T08:38:56.605Z",
-          "timesSeen": 3
+          "lastSeenAt": "2026-10-14T06:24:08.553Z",
+          "timesSeen": 160
         },
         {
           "name": "织造方式",
@@ -10036,8 +10039,8 @@
             }
           },
           "firstSeenAt": "2026-10-13T04:00:56.573Z",
-          "lastSeenAt": "2026-10-13T08:39:07.185Z",
-          "timesSeen": 3
+          "lastSeenAt": "2026-10-14T06:24:08.553Z",
+          "timesSeen": 160
         }
       ]
     },
@@ -13390,6 +13393,88 @@
           "firstSeenAt": "2026-10-13T05:34:40.209Z",
           "lastSeenAt": "2026-10-13T05:35:48.843Z",
           "timesSeen": 2
+        }
+      ]
+    },
+    "任务记录": {
+      "categoryName": "任务记录",
+      "key": "任务记录",
+      "firstSeenAt": "2026-10-14T03:57:40.062Z",
+      "lastSeenAt": "2026-10-14T03:57:40.062Z",
+      "timesSeen": 1,
+      "sampleTitles": [
+        "2.4.3"
+      ],
+      "attributes": [
+        {
+          "name": "材质",
+          "controlType": "select",
+          "required": true,
+          "options": [],
+          "values": {},
+          "firstSeenAt": "2026-10-14T03:57:40.062Z",
+          "lastSeenAt": "2026-10-14T03:57:40.062Z",
+          "timesSeen": 1
+        },
+        {
+          "name": "成分",
+          "controlType": "material_ratio_table",
+          "required": true,
+          "options": [],
+          "values": {},
+          "firstSeenAt": "2026-10-14T03:57:40.062Z",
+          "lastSeenAt": "2026-10-14T03:57:40.062Z",
+          "timesSeen": 1
+        },
+        {
+          "name": "护理说明",
+          "controlType": "select",
+          "required": true,
+          "options": [],
+          "values": {},
+          "firstSeenAt": "2026-10-14T03:57:40.062Z",
+          "lastSeenAt": "2026-10-14T03:57:40.062Z",
+          "timesSeen": 1
+        },
+        {
+          "name": "季节",
+          "controlType": "select",
+          "required": true,
+          "options": [],
+          "values": {},
+          "firstSeenAt": "2026-10-14T03:57:40.062Z",
+          "lastSeenAt": "2026-10-14T03:57:40.062Z",
+          "timesSeen": 1
+        },
+        {
+          "name": "面料纹理1",
+          "controlType": "select",
+          "required": true,
+          "options": [],
+          "values": {},
+          "firstSeenAt": "2026-10-14T03:57:40.062Z",
+          "lastSeenAt": "2026-10-14T03:57:40.062Z",
+          "timesSeen": 1
+        },
+        {
+          "name": "图案",
+          "controlType": "select",
+          "required": true,
+          "options": [],
+          "values": {},
+          "firstSeenAt": "2026-10-14T03:57:40.062Z",
+          "lastSeenAt": "2026-10-14T03:57:40.062Z",
+          "timesSeen": 1
+        },
+        {
+          "name": "织造方式",
+          "controlType": "select",
+          "required": true,
+          "options": [],
+          "values": {},
+          "firstSeenAt": "2026-10-14T03:57:40.062Z",
+          "lastSeenAt": "2026-10-14T03:57:40.062Z",
+          "timesSeen": 1
         }
       ]
     }

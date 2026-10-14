@@ -215,6 +215,11 @@ async function processCurrentProduct(page, config, logger, summary, options = {}
 
   tic('readInfo');
   const productInfo = await readProductInfo(page);
+  // 死页面防护：会话失效/误跳接口页时，页面"标题"会读成 JSON 配置体，
+  // 此时后续 AI/填写全是无效操作，直接中止本商品（2026-10-14 事故：报错文字被填成商品标题）
+  if (/^\s*[{[]/.test(productInfo.title || '') || /appName|appChineseName|miaoshou|"host"/i.test(productInfo.title || '')) {
+    throw new Error(`页面读取异常，标题疑似接口响应体(会话可能已失效)，跳过该商品: ${String(productInfo.title || '').slice(0, 60)}`);
+  }
   summary.productTitle = productInfo.title || '(未读取到标题)';
   console.log(`[页面] 标题: ${summary.productTitle}`);
   console.log(`[页面] 图片数量: ${(productInfo.images || []).length}`);
@@ -1959,6 +1964,51 @@ async function closeFeedbackOverlays(page) {
   return closed;
 }
 
+// 当前页最后一项已处理时：点击分页"下一页"（.pro-pagination .btn-next），再点新页第一个商品
+async function clickNextPageAndFirstItem(page) {
+  const pageClicked = await page.evaluate(() => {
+    const btns = Array.from(document.querySelectorAll('.pro-pagination .btn-next'));
+    const btn = btns.find((b) => !(b.disabled || b.getAttribute('aria-disabled') === 'true' || /disabled/i.test(b.className || '')));
+    if (!btn) return false;
+    btn.scrollIntoView({ block: 'center', inline: 'nearest' });
+    btn.click();
+    return true;
+  }).catch(() => false);
+  if (!pageClicked) {
+    console.warn('[下一商品] 没有可用的下一页按钮（可能已在最后一页）');
+    return null;
+  }
+  console.log('[下一商品] 当前页已到最后一项，已点击下一页，等待列表刷新...');
+  await page.waitForTimeout(1200).catch(() => {});
+
+  // 点击新页第一个商品
+  const first = await page.evaluate(() => {
+    function visible(el) {
+      const rect = el.getBoundingClientRect();
+      const style = window.getComputedStyle(el);
+      return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+    }
+    const items = Array.from(document.querySelectorAll('.goods-list-box .goods-item, .goods-item')).filter(visible);
+    const item = items[0];
+    if (!item) return { ok: false, reason: '翻页后未找到商品项' };
+    const clickTarget = item.querySelector('.list-goods-item, .item-title, .goods-info, .goods-img-box') || item;
+    const titleNode = item.querySelector('.item-title, [title]');
+    const title = titleNode ? (titleNode.getAttribute('title') || titleNode.textContent || '').trim() : '';
+    clickTarget.scrollIntoView({ block: 'center', inline: 'nearest' });
+    clickTarget.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, cancelable: true, view: window }));
+    clickTarget.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
+    clickTarget.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
+    clickTarget.click();
+    return { ok: true, title };
+  }).catch((error) => ({ ok: false, reason: error.message }));
+  if (!first.ok) {
+    console.warn(`[下一商品] ${first.reason}`);
+    return null;
+  }
+  console.log(`[下一商品] 已点击新页第一个商品${first.title ? `：${first.title}` : ''}`);
+  return first;
+}
+
 async function goToNextProduct(page, config, productInfo, productIndex) {
   console.log(`[下一商品] 第 ${productIndex} 个商品处理结束，尝试进入下一个商品...`);
 
@@ -1991,6 +2041,37 @@ async function goToNextProduct(page, config, productInfo, productIndex) {
       return { success: true, method: 'goods_list', title: clickedGoodsList.title || '' };
     }
     console.warn('[下一商品] 商品列表点击后页面和标题均未变化，视为停留在当前商品');
+  }
+
+  // 列表内已无下一项（当前页最后一项）→ 翻到下一页并点新页第一个商品
+  const paged = await clickNextPageAndFirstItem(page);
+  if (paged) {
+    await confirmLeaveIfPrompted(page);
+    let pagedTitleChanged = false;
+    for (let t = 0; t < 12 && !pagedTitleChanged; t += 1) {
+      await page.waitForTimeout(500).catch(() => {});
+      // 处理"是否切换商品"弹窗
+      await page.evaluate(() => {
+        const boxes = Array.from(document.querySelectorAll('.el-message-box, .jx-message-box'))
+          .filter((box) => box.offsetWidth > 0 && box.offsetHeight > 0);
+        const popup = boxes.find((box) => /切换|保存修改|确认离开/.test(box.innerText || ''));
+        if (!popup) return false;
+        const btn = popup.querySelector('.el-button--primary, .jx-button--primary');
+        if (btn) { btn.click(); return true; }
+        return false;
+      }).catch(() => false);
+      pagedTitleChanged = await page.evaluate((oldTitle) => {
+        const active = document.querySelector('.goods-item.is-active, .goods-item.active, .goods-item.selected, .goods-item.current');
+        const titleNode = active && active.querySelector('.item-title, [title]');
+        const title = titleNode ? (titleNode.getAttribute('title') || titleNode.textContent || '').trim() : '';
+        return Boolean(title) && (!oldTitle || title !== oldTitle);
+      }, beforeTitle).catch(() => false);
+    }
+    if (pagedTitleChanged) {
+      console.log('[下一商品] 已翻页并切换到新页第一个商品');
+      return { success: true, method: 'goods_pagination', title: paged.title || '' };
+    }
+    console.warn('[下一商品] 翻页点击后未检测到商品切换');
   }
 
   const selectors = [

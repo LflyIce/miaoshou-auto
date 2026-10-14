@@ -23,6 +23,7 @@ interface UpdateInfo {
 interface SettingsData {
   config: any;
   apiKey: string;
+  apiKeys: Record<string, string>;
   apiKeyEnv: string;
   version: string;
   paths: Record<string, string>;

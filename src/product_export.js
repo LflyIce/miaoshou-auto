@@ -1,7 +1,7 @@
 const ExcelJS = require('exceljs');
 const path = require('path');
 const fs = require('fs');
-const { resolveRoot, nowForFile } = require('./utils');
+const { resolveRoot, nowForFile, loadConfig } = require('./utils');
 
 const COLUMNS = [
   { header: '图片', key: 'imageUrl', width: 40 },
@@ -74,7 +74,10 @@ class ProductExporter {
 
   addProduct(record) {
     const price = parseFloat(record.declaredPrice) || 0;
-    const cost = price > 0 ? Math.round((price / 4) * 100) / 100 : 0;
+    // 采购成本 = 申报价 ÷ 核价倍数（config.temu.multiplier，即设置页「核价倍数」），未配置或非法时回退 4
+    const temu = (loadConfig().temu || {});
+    const multiplier = Number(temu.multiplier) > 0 ? Number(temu.multiplier) : 4;
+    const cost = price > 0 ? Math.round((price / multiplier) * 100) / 100 : 0;
 
     console.log(`[导出-DEBUG] addProduct 调用前 worksheet 行数: ${this.worksheet ? this.worksheet.rowCount : 'worksheet为null'}`);
     console.log(`[导出-DEBUG] addProduct 数据: imageUrl=${(record.imageUrl || '').slice(0, 60)}, productUrl=${(record.productUrl || '').slice(0, 60)}, japaneseTitle=${(record.japaneseTitle || '').slice(0, 40)}, specs=${(record.specifications || '').slice(0, 40)}, price=${record.declaredPrice}`);
