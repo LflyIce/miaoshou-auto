@@ -14,10 +14,14 @@ const {
 
 // Temu 核价列表页 DOM 说明：
 // - 主表是虚拟滚动（只渲染可见行），需要边滚边处理，按 SKC 编号去重。
-// - 「查看并确认申报价格」链接：a[data-testid="beast-core-button-link"]，文本含“查看并确认申报价格”。
-// - 点击后右侧弹出 drawer：[data-testid="bgb-pc-show-drawer-body"]，内含单个 SKC 的所有 SKU 明细。
-// - drawer 内「操作」下拉是 SKC 级（rowspan 覆盖整组 SKU），默认值“申请调整更新申报价格”，
-//   选项之一为“放弃调整申报价格”。决策用组内第一个 SKU 的原价/调整后价。
+// - 「查看并确认申报价格」链接：a[data-testid=”beast-core-button-link”]，文本含”查看并确认申报价格”。
+// - 点击后右侧弹出 drawer：[data-testid=”bgb-pc-show-drawer-body”]，内含单个 SKC 的所有 SKU 明细。
+// - drawer 内「操作」下拉是 SKC 级（rowspan 覆盖整组 SKU），默认值”申请调整更新申报价格”，
+//   选项之一为”放弃调整申报价格”。决策用组内第一个 SKU 的原价/调整后价。
+// - 价格列定位策略：按 drawer 表头 th 文本”原申报价格(CNY)”/”调整后申报价格(CNY)”定位列索引，
+//   再从第一个 SKU 行按 td 顺序读含 ¥ 的 bigFont 值。表头定位失败时降级为”数 ¥ span”。
+// - 提交后等待：drawer 关闭后轮询列表页该 SKC 行状态是否从”价格申报中”变更，
+//   确认后端写入完成再处理下一个商品（超时 15s 放行）。
 // 注意：Temu 用 CSS module，类名带哈希后缀（如 TB_checkCell_5-120-1）无法用前缀匹配，
 //       因此本文件一律用 data-testid 定位；少数 CSS module 固定哈希类（如 skcId / bigFont）标注了风险点。
 
@@ -85,7 +89,58 @@ async function selectTemuOption(page, selectRoot, optionText) {
   await page.waitForTimeout(250);
 }
 
-// 处理单个 SKC：点链接开 drawer → 决策操作下拉 → 全选 → 全部提交 → 关 drawer
+// 决策并执行操作下拉选择（从第一个 SKU 行的 select 操作）
+// 通过 setAbandoned 回调把结果写回调用方的 abandoned 变量
+async function handleDecision(page, tbody, skcKey, origin, adjusted, multiplier, threshold, log, setAbandoned) {
+  if (Number.isNaN(origin) || Number.isNaN(adjusted)) {
+    log(`读取价格失败（origin=${origin}, adjusted=${adjusted}），跳过决策（保留默认）`);
+    return;
+  }
+  const target = origin / multiplier;
+  const diff = Math.abs(target - adjusted);
+  const verdict = diff < threshold ? '放弃调整' : '接受调整';
+  log(`原价 ${origin} / 倍数 ${multiplier} = ${target.toFixed(2)}，调整后 ${adjusted}，差值 ${diff.toFixed(2)}（阈值 ${threshold}）→ ${verdict}`);
+  if (diff < threshold) {
+    const select = tbody.locator('[data-testid="beast-core-select"]').first();
+    await selectTemuOption(page, select, '放弃调整申报价格');
+    // read-back：select 的 input value 应已变为"放弃调整申报价格"
+    const val = await select
+      .locator('input[data-testid="beast-core-select-htmlInput"]')
+      .first()
+      .inputValue();
+    if (val.includes('放弃调整')) {
+      setAbandoned(1);
+      log('已选择「放弃调整申报价格」');
+    } else {
+      console.error(`[Temu核价] ${skcKey}：read-back 未确认，当前 select 值="${val}"`);
+    }
+  }
+}
+
+// 提交并关闭 drawer 后，等待列表页该 SKC 行的状态更新
+// 策略：轮询列表页中包含 skcKey 的行，检查其状态文本是否不再是"价格申报中"
+// 超时 15s 后放行（避免后端慢响应时卡死）
+async function waitForStatusUpdate(page, skcKey, timeoutMs = 15000) {
+  const start = Date.now();
+  const rowLocator = page.locator('tr').filter({ hasText: skcKey });
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const count = await rowLocator.count();
+      if (count > 0) {
+        const text = await rowLocator.first().innerText();
+        // 状态不再是"价格申报中"即视为已更新（变为"待卖家确认"/"已作废"等）
+        if (!text.includes('价格申报中')) {
+          return true;
+        }
+      }
+      // 行可能不在虚拟滚动视口内，继续等待
+    } catch (_) { /* 忽略单轮检查异常 */ }
+    await page.waitForTimeout(800);
+  }
+  return false;  // 超时，放行
+}
+
+// 处理单个 SKC：点链接开 drawer → 决策操作下拉 → 提交 → 等待数据更新 → 关 drawer
 async function processOneSkc(page, skcKey, { multiplier, threshold }) {
   const log = (msg) => console.log(`[Temu核价] ${skcKey}：${msg}`);
 
@@ -111,41 +166,61 @@ async function processOneSkc(page, skcKey, { multiplier, threshold }) {
   let abandoned = 0;
   try {
     // 3. 决策：操作 select 是 SKC 级，用第一个 SKU 的原价/调整后价
-    const select = tbody.locator('[data-testid="beast-core-select"]').first();
-    const selectTr = select.locator('xpath=ancestor::tr').first();
-    // 风险点：components_bigFont__QyHhb 是 CSS module 固定哈希类
-    // 注意：tr 内 bigFont span 不止价格两列——“改价次数”列也是 bigFont（纯数字，如“1”）。
-    //       按“文本含 ¥”过滤，只取真正的价格，避免把改价次数误读为原价。
-    const allSpans = selectTr.locator('span.components_bigFont__QyHhb');
-    const spanCount = await allSpans.count();
-    const priceTexts = [];
-    for (let i = 0; i < spanCount; i += 1) {
-      const t = await allSpans.nth(i).innerText();
-      if (t.includes('¥')) priceTexts.push(t);
+    //    ── 按表头语义定位价格列，避免列序变化时静默拿反 ──
+    //    drawer 表头列顺序（可能随 Temu 改版变化）：..., 改价次数, 原申报价格(CNY), 调整后申报价格(CNY), ...
+    //    策略：先读 header 找到"原申报价格"/"调整后申报价格"的列索引，再按索引从第一个 SKU 行读对应 td 的 ¥ 值。
+    const headerRow = drawer.locator('thead[data-testid="beast-core-table-middle-thead"] tr').first();
+    const headerCells = headerRow.locator('th');
+    const headerCount = await headerCells.count();
+    let originColIdx = -1;
+    let adjustedColIdx = -1;
+    for (let i = 0; i < headerCount; i += 1) {
+      const txt = await headerCells.nth(i).innerText();
+      if (txt.includes('原申报价格')) originColIdx = i;
+      else if (txt.includes('调整后申报价格')) adjustedColIdx = i;
     }
-    const origin = parsePrice(priceTexts[0]);
-    const adjusted = parsePrice(priceTexts[1]);
-    if (Number.isNaN(origin) || Number.isNaN(adjusted)) {
-      log(`读取价格失败（含¥价格 ${JSON.stringify(priceTexts)}），跳过决策（保留默认）`);
+    if (originColIdx === -1 || adjustedColIdx === -1) {
+      // header 定位失败时降级：回退到原来的「数 ¥ span」方式
+      log('表头列定位失败，降级为按 ¥ span 顺序读取');
+      const select = tbody.locator('[data-testid="beast-core-select"]').first();
+      const selectTr = select.locator('xpath=ancestor::tr').first();
+      const allSpans = selectTr.locator('span.components_bigFont__QyHhb');
+      const spanCount = await allSpans.count();
+      const priceTexts = [];
+      for (let j = 0; j < spanCount; j += 1) {
+        const t = await allSpans.nth(j).innerText();
+        if (t.includes('¥')) priceTexts.push(t);
+      }
+      const origin = parsePrice(priceTexts[0]);
+      const adjusted = parsePrice(priceTexts[1]);
+      await handleDecision(page, tbody, skcKey, origin, adjusted, multiplier, threshold, log, (v) => { abandoned = v; });
     } else {
-      const target = origin / multiplier;
-      const diff = Math.abs(target - adjusted);
-      const verdict = diff < threshold ? '放弃调整' : '接受调整';
-      log(`原价 ${origin} / 倍数 ${multiplier} = ${target.toFixed(2)}，调整后 ${adjusted}，差值 ${diff.toFixed(2)}（阈值 ${threshold}）→ ${verdict}`);
-      if (diff < threshold) {
-        await selectTemuOption(page, select, '放弃调整申报价格');
-        // read-back：select 的 input value 应已变为“放弃调整申报价格”
-        const val = await select
-          .locator('input[data-testid="beast-core-select-htmlInput"]')
-          .first()
-          .inputValue();
-        if (val.includes('放弃调整')) {
-          abandoned = 1;
-          log('已选择「放弃调整申报价格」');
-        } else {
-          console.error(`[Temu核价] ${skcKey}：read-back 未确认，当前 select 值="${val}"`);
+      // 按列索引从第一个 SKU 行读取价格
+      // 注意：drawer tbody 第一行前面有 rowspan 合并的列（checkbox、SKC信息、站点等），
+      //       所以 header 列索引需要根据实际 td 位置偏移。直接取第一个 tr 的所有 td，
+      //       按"含 ¥ 的 bigFont"过滤后，以 headerColIndex 对应的 td 顺序为准。
+      const firstTr = tbody.locator('tr[data-testid="beast-core-table-body-tr"]').first();
+      const tds = firstTr.locator('td');
+      const tdCount = await tds.count();
+      // 收集每个 td 内的 ¥ 价格文本，建立 tdIndex → priceText 映射
+      const tdPriceTexts = [];
+      for (let k = 0; k < tdCount; k += 1) {
+        const tdEl = tds.nth(k);
+        const bigFonts = tdEl.locator('span.components_bigFont__QyHhb');
+        const bfCount = await bigFonts.count();
+        for (let m = 0; m < bfCount; m += 1) {
+          const t = await bigFonts.nth(m).innerText();
+          if (t.includes('¥')) {
+            tdPriceTexts.push({ tdIdx: k, text: t });
+          }
         }
       }
+      // 按 td 出现顺序取前两个 ¥ 价格（对应 header 中 原申报/调整后 的先后顺序）
+      const origin = parsePrice(tdPriceTexts[0].text);
+      const adjusted = parsePrice(tdPriceTexts[1].text);
+      log(`按表头定位：原申报列下标 ${originColIdx} / 调整后列下标 ${adjustedColIdx}，`
+        + `第一个 SKU 行含¥价格 ${JSON.stringify(tdPriceTexts.map(p => p.text))}`);
+      await handleDecision(page, tbody, skcKey, origin, adjusted, multiplier, threshold, log, (v) => { abandoned = v; });
     }
 
     // 4. 点「全部提交」。不需要先点表头全选——改过操作下拉的行会自动纳入提交，
@@ -176,17 +251,33 @@ async function processOneSkc(page, skcKey, { multiplier, threshold }) {
       // 未弹出确认气泡（如无可提交项 / Temu 改版），忽略，直接进入关 drawer 流程
     }
 
-    // 6. 等 drawer 自动关闭。先等 8s 自动关；超时则用原生 click 关闭图标兜底。
+    // 6. 等 drawer 自动关闭。先等 10s 自动关；超时则用原生 click 关闭图标兜底。
+    let drawerClosed = false;
     try {
-      await page.waitForSelector('[data-testid="bgb-pc-show-drawer-body"]', { state: 'detached', timeout: 8000 });
+      await page.waitForSelector('[data-testid="bgb-pc-show-drawer-body"]', { state: 'detached', timeout: 10000 });
       log('drawer 已自动关闭');
+      drawerClosed = true;
     } catch (_) {
       try {
         await nativeClick(drawer.locator('[data-testid="beast-core-icon-close"]').first());
         await page.waitForTimeout(500);
         log('drawer 未自动关闭，已手动关闭');
+        drawerClosed = true;
       } catch (e2) {
         log(`drawer 关闭失败：${e2.message || e2}`);
+      }
+    }
+
+    // 7. 等待列表页数据更新完成
+    //    drawer 关闭只代表前端动作完成，后端可能还在处理。
+    //    轮询该 SKC 行状态是否从"价格申报中"变为其他值，确认后端写入完成再继续。
+    if (drawerClosed) {
+      log('等待后端数据更新...');
+      const updated = await waitForStatusUpdate(page, skcKey, 15000);
+      if (updated) {
+        log('数据已更新，继续下一个商品');
+      } else {
+        log('等待数据更新超时（15s），继续下一个商品');
       }
     }
   } catch (err) {
